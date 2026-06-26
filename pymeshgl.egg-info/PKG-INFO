@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: pymeshgl
+Version: 1.0.0
+Summary: Visor 3D interactivo de modelos OBJ con OpenGL y rotacion por cuaterniones
+Requires-Python: >=3.9
+License-File: LICENSE
+Requires-Dist: pygame
+Requires-Dist: PyOpenGL
+Requires-Dist: numpy
+Requires-Dist: colorama
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

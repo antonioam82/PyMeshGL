@@ -1,0 +1,10 @@
+LICENSE
+PyMeshGL.py
+README.md
+setup.py
+pymeshgl.egg-info/PKG-INFO
+pymeshgl.egg-info/SOURCES.txt
+pymeshgl.egg-info/dependency_links.txt
+pymeshgl.egg-info/entry_points.txt
+pymeshgl.egg-info/requires.txt
+pymeshgl.egg-info/top_level.txt
