@@ -11,7 +11,7 @@ zoom, paneo con el mouse y renderizado en wireframe o sólido.
 ### Opción 1: comando global (recomendado)
 
 ```bash
-git clone https://github.com/TU-USUARIO/PyMeshGL.git
+git clone https://github.com/antonioam82/PyMeshGL.git
 cd PyMeshGL
 pip install -e .
 ```
