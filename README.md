@@ -6,6 +6,36 @@ Permite cargar modelos y explorarlos en tiempo real con rotación suave basada e
 vistas predefinidas (frontal, cenital, lateral...), proyección ortográfica o en perspectiva, 
 zoom, paneo con el mouse y renderizado en wireframe o sólido.
 
+## Instalación
+
+### Opción 1: comando global (recomendado)
+
+```bash
+git clone https://github.com/TU-USUARIO/PyMeshGL.git
+cd PyMeshGL
+pip install -e .
+```
+
+Esto instala las dependencias **y** registra el comando `pymeshgl`, disponible desde cualquier carpeta:
+
+```bash
+pymeshgl -load modelo.obj -ec
+```
+
+### Opción 2: ejecutar el script directamente
+
+Si no quieres instalar el comando global, solo necesitas las dependencias:
+
+```bash
+pip install -r requirements.txt
+python PyMeshGL.py -load modelo.obj -ec
+```
+
+| | ¿Obligatorio? | Para qué sirve |
+|---|---|---|
+| `pip install -r requirements.txt` | ✅ Sí | Instala las librerías que el script necesita para funcionar |
+| `pip install -e .` | ❌ No, es comodidad | Instala las dependencias y además crea el comando global `pymeshgl`, para no usar `python` ni rutas |
+
 ## Modo de uso
 
 ```
