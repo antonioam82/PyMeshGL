@@ -346,7 +346,7 @@ def window(args):
             #glEnable(GL_BLEND)
             #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
  
-            pygame.display.set_caption("Model Viewer")
+            pygame.display.set_caption("PyMeshGL")
             font = pygame.font.SysFont('arial', 15)
  
             glEnable(GL_DEPTH_TEST)#######################################################
