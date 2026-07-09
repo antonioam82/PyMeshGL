@@ -289,6 +289,7 @@ def setup_view_perspective(display):
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluPerspective(50, (display[0] / display[1]), 0.01, 1000.0)
+    #gluPerspective(50, (display[0] / display[1]), 0.1, 50)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     glTranslatef(0.0, 0.0, -10.0)
