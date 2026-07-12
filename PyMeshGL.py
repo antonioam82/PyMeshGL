@@ -526,7 +526,7 @@ def window(args):
                 if key[pygame.K_n]:
                     rotation = create_rotation_quaternion(-rot_speed, 0, 0, 1)
                     quaternion = quaternion * rotation
-                if key[pygame.K_z] and scale >= 0.0: ############## limite
+                if key[pygame.K_z]: # and scale >= 0.0: ############## limite
                     scale -= args.zoom_rate * (dt / (1/60))
                 if key[pygame.K_x]:
                     scale += args.zoom_rate * (dt / (1/60))
@@ -558,7 +558,7 @@ def window(args):
  
                 if not hide_data:
                     drawText(font, 20, text_pos1, f'Model: {model_name}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 2)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
+                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
                     view_mode = "Orthographic" if is_ortho else "Perspective"
                     drawText(font, 20, text_pos3, f'View: {view_mode}', (0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
