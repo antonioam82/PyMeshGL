@@ -57,7 +57,7 @@ def load_obj(filename,color,args):
     num_verts: int = 0
     num_triangles: int = 0
     num_edges: int = 0
-    polygon_verts: int = 0
+    #polygon_verts: int = 0
     load_error: bool = False
     line_counter: int = 0
     #nv_list = set()
@@ -108,7 +108,7 @@ def load_obj(filename,color,args):
                     if len(face_indices) < 3:
                         continue
  
-                    polygon_verts = len(face_indices)
+                    #polygon_verts = len(face_indices)
                     #nv_list.add(polygon_verts)
  
                     if color:
@@ -123,7 +123,6 @@ def load_obj(filename,color,args):
                         edges.add(tuple(sorted((v1, v2))))
  
         num_edges = len(edges)
-        #print(f"\nPOLYGON VERTS LIST: {nv_list}")
  
         # CENTERING
         if args.enable_centering and vertices:
@@ -141,7 +140,7 @@ def load_obj(filename,color,args):
     #print(f'NV: {num_verts}')
     #print(f'NF: {num_triangles}')
  
-    return vertices, edges, num_verts, num_triangles, num_edges, faces, polygon_verts, load_error
+    return vertices, edges, num_verts, num_triangles, num_edges, faces, load_error
  
  
 _text_cache: dict = {}
@@ -294,30 +293,35 @@ def setup_view_perspective(display):
     glLoadIdentity()
     glTranslatef(0.0, 0.0, -10.0)
  
-def fill_object(polygon_verts,faces,vertices):
+def fill_object(faces,vertices):
     glEnable(GL_POLYGON_OFFSET_FILL)#############
     glPolygonOffset(1.0, 1.0)####################
- 
-    if polygon_verts == 3:
-        glBegin(GL_TRIANGLES)##################
-    elif polygon_verts == 4:
-        glBegin(GL_QUADS)
-    elif polygon_verts > 4:
-        glBegin(GL_POLYGON)
+
     glColor3f(0.0, 0.5, 0.0)
+
     for face in faces:
+        n = len(face)
+        if n == 3:
+            mode = GL_TRIANGLES
+        elif n == 4:
+            mode = GL_QUADS
+        else:
+            mode = GL_POLYGON
+        glBegin(mode)
+
         for vertex in face:
             glVertex3fv(vertices[vertex])
-    glEnd()################################
+
+        glEnd()
     glDisable(GL_POLYGON_OFFSET_FILL)
  
- 
+
 def window(args):
     # Cargar el modelo OBJ
     try:
         path = args.load_object
         model_name = os.path.basename(path)
-        vertices, edges, num_verts, num_triangles, num_edges, faces, polygon_verts, load_error = load_obj(path,args.fill_object,args)
+        vertices, edges, num_verts, num_triangles, num_edges, faces, load_error = load_obj(path,args.fill_object,args)
  
         if not load_error:
             show_controls()
@@ -372,7 +376,7 @@ def window(args):
             glLineWidth(args.line_width)
  
             if args.fill_object:
-                fill_object(polygon_verts,faces,vertices)
+                fill_object(faces,vertices)
  
             if args.bg_color == 'white':
                 glColor3f(0.0, 0.0, 0.0)  # Color negro
