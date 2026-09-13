@@ -293,9 +293,9 @@ def setup_view_perspective(display):
     glLoadIdentity()
     glTranslatef(0.0, 0.0, -10.0)
  
-def fill_object(faces,vertices):
+def fill_object(faces,vertices,factor,units):
     glEnable(GL_POLYGON_OFFSET_FILL)#############
-    glPolygonOffset(1.0, 1.0)####################
+    glPolygonOffset(factor, units)####################
 
     glColor3f(0.0, 0.5, 0.0)
 
@@ -317,6 +317,7 @@ def fill_object(faces,vertices):
  
 
 def window(args):
+
     # Cargar el modelo OBJ
     try:
         path = args.load_object
@@ -355,6 +356,7 @@ def window(args):
             font = pygame.font.SysFont('arial', 15)
  
             glEnable(GL_DEPTH_TEST)#######################################################
+            glDepthFunc(GL_LESS)
  
             #glClearColor(0.0, 0.0, 1.0, 1.0)
  
@@ -364,6 +366,9 @@ def window(args):
                          rgb_colors[args.bg_color][3])
  
             ##
+            factor = args.factor
+            units = args.units
+
             scale = args.scale
             hide_data = False
             green_val = 255
@@ -376,7 +381,7 @@ def window(args):
             glLineWidth(args.line_width)
  
             if args.fill_object:
-                fill_object(faces,vertices)
+                fill_object(faces,vertices,factor,units)
  
             if args.bg_color == 'white':
                 glColor3f(0.0, 0.0, 0.0)  # Color negro
@@ -595,6 +600,8 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
+    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor)")
+    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units)")
  
     args = parser.parse_args()
     window(args)
