@@ -13,7 +13,7 @@ import argparse
 from colorama import init, Fore, Style
 import time
  
-# load_obj4c5.py -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500 -height 770 -lw 0.3
+# pymeshgl.py -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500 -height 770 -lw 0.3
  
 init()
  
