@@ -578,6 +578,15 @@ def window(args):
                 clock.tick(120)###########
  
             glDeleteLists(model_list, 1)
+            glDisable(GL_MULTISAMPLE)
+            glDisable(GL_LINE_SMOOTH)
+            glDisable(GL_DEPTH_TEST)
+
+            pygame.display.set_caption("PyMeshGL")
+            font = pygame.font.SysFont('arial', 15)
+
+            glEnable(GL_DEPTH_TEST)#######################################################
+
             pygame.quit()
         else:
             print(Fore.RED+Style.BRIGHT + "FILE ERROR" + Fore.RESET+Style.RESET_ALL)
