@@ -49,7 +49,7 @@ def check_source_ext(file):
         raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"FILE NOT FOUND: file or path '{file}' not found."+Fore.RESET+Style.RESET_ALL)
     return file
  
-def load_obj(filename,color,args):
+def load_obj(filename,args):
  
     vertices: list[list[float]] = []
     faces: list[list[int]] = []
@@ -62,6 +62,7 @@ def load_obj(filename,color,args):
     line_counter: int = 0
     #nv_list = set()
     #message_error: str
+    color = args.fill_object
  
     try:
         with open(filename, 'r') as file:
@@ -322,7 +323,7 @@ def window(args):
     try:
         path = args.load_object
         model_name = os.path.basename(path)
-        vertices, edges, num_verts, num_triangles, num_edges, faces, load_error = load_obj(path,args.fill_object,args)
+        vertices, edges, num_verts, num_triangles, num_edges, faces, load_error = load_obj(path,args)
  
         if not load_error:
             show_controls()
@@ -478,6 +479,9 @@ def window(args):
                             quaternion = Quaternion(1, 0, 0, 0)  # Restablece rotación
                             rotation = create_rotation_quaternion(180, 0, 1, 0)
                             quaternion = quaternion * rotation
+                        '''elif event.key == pygame.K_w:
+                            pass'''
+                        
  
  
                     elif event.type == pygame.MOUSEWHEEL:  # Rueda ratón
