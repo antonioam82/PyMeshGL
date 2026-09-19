@@ -613,6 +613,9 @@ def main():
     parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units)")
  
     args = parser.parse_args()
+    if (args.factor != None or args.units != None) and not args.fill_object:
+        parser.error("Arguments '-f/--factor' and '-u/--units' only can be used with '-fill/--fill_object' argument")
+ 
     window(args)
  
 if __name__ =="__main__":
