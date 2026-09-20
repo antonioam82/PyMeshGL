@@ -365,6 +365,12 @@ def window(args):
             text_pos4 = text_pos(args.window_height,510)
             text_pos5 = text_pos(args.window_height,490)
             text_pos6 = text_pos(args.window_height,470)
+            text_pos7 = text_pos(args.window_height,450)
+            text_pos8 = text_pos(args.window_height,430)
+            
+            # COLORES TEXTO PANTALLA
+            fg = (0, 255, 0, 255)
+            bg = (text_bgR, text_bgG, text_bgB)
  
             display = (args.window_width, args.window_height)
  
@@ -398,7 +404,6 @@ def window(args):
 
             scale = args.scale
             hide_data = False
-            green_val = 255
             rotating = False
  
             # Crear la lista de display para el modelo
@@ -436,6 +441,7 @@ def window(args):
             dragging = False
             last_mouse_pos = (0, 0)
             translation = [0.0, 0.0]
+            
  
             clock = pygame.time.Clock()
             last_time = time.perf_counter() ###
@@ -596,13 +602,16 @@ def window(args):
                 glPopMatrix()
  
                 if not hide_data:
-                    drawText(font, 20, text_pos1, f'Model: {model_name}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
+                    drawText(font, 20, text_pos1, f'Model: {model_name}', fg, bg)
+                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', fg, bg)
                     view_mode = "Orthographic" if is_ortho else "Perspective"
-                    drawText(font, 20, text_pos3, f'View: {view_mode}', (0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos6, f'Num Edges: {num_edges}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                    drawText(font, 20, text_pos3, f'View: {view_mode}', fg, bg)
+                    drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
+                    drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
+                    drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
+                    drawText(font, 20, text_pos7, f'Num VT: {num_vt}', fg, bg)
+                    drawText(font, 20, text_pos8, f'Num VN: {num_vn}', fg, bg)
+
  
                 pygame.display.flip()
                 clock.tick(120)###########
