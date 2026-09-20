@@ -52,15 +52,18 @@ def check_source_ext(file):
 def load_obj(filename,args):
  
     vertices: list[list[float]] = []
+    #tex_cords: list[list[float]] = []
+    #normals: list[list[float]] = []    
     faces: list[list[int]] = []
     edges: set[tuple[int, int]] = set()
     num_verts: int = 0
     num_triangles: int = 0
     num_edges: int = 0
-    #polygon_verts: int = 0
+    num_vt: int = 0
+    num_vn: int = 0
+    polygon_verts: int = 0
     load_error: bool = False
     line_counter: int = 0
-    #nv_list = set()
     #message_error: str
     color = args.fill_object
  
@@ -86,6 +89,27 @@ def load_obj(filename,args):
                     ]
                     vertices.append(vertex)
                     num_verts += 1
+                
+                # COORDENADAS TEXTURA
+                elif parts[0] == 'vt':
+                    if len(parts) < 3:
+                        continue
+                    u = float(parts[1])
+                    v = float(parts[2])
+                    w = float(parts[3]) if len(parts) > 3 else 0.0
+                    #tex_coords.append([u, v, w])
+                    num_vt += 1
+
+                # NORMALES
+                elif parts[0] == 'vn':
+                    if len(parts) < 4:
+                        continue
+                    nx = float(parts[1])
+                    ny = float(parts[2])
+                    nz = float(parts[3])
+                    #normal_coords.append([nx,ny,nz])
+                    num_vt += 1
+                    
  
                 # FACES
                 elif parts[0] == 'f':
@@ -141,7 +165,8 @@ def load_obj(filename,args):
     #print(f'NV: {num_verts}')
     #print(f'NF: {num_triangles}')
  
-    return vertices, edges, num_verts, num_triangles, num_edges, faces, load_error
+    return (vertices, edges, num_verts, num_triangles,
+           num_edges, faces, load_error, num_vt, num_vn)
  
  
 _text_cache: dict = {}
@@ -323,7 +348,8 @@ def window(args):
     try:
         path = args.load_object
         model_name = os.path.basename(path)
-        vertices, edges, num_verts, num_triangles, num_edges, faces, load_error = load_obj(path,args)
+        (vertices, edges, num_verts, num_triangles, 
+         num_edges, faces, load_error, num_vt, num_vn) = load_obj(path,args)
  
         if not load_error:
             show_controls()
@@ -609,8 +635,8 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
-    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor)")
-    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units)")
+    parser.add_argument('-f','--factor',type=float,default=None,help="Slope Scaling (Slope-Factor)")
+    parser.add_argument('-u','--units',type=float,default=None,help="Minimum Phase Shift Units (Constant-Units)")
  
     args = parser.parse_args()
     if (args.factor != None or args.units != None) and not args.fill_object:
