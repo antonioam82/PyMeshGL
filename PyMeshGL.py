@@ -108,7 +108,7 @@ def load_obj(filename,args):
                     ny = float(parts[2])
                     nz = float(parts[3])
                     #normal_coords.append([nx,ny,nz])
-                    num_vt += 1
+                    num_vn += 1
                     
  
                 # FACES
@@ -367,7 +367,9 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
-            
+            vtvn = [text_pos7, text_pos8]
+            index = 0
+
             # COLORES TEXTO PANTALLA
             fg = (0, 255, 0, 255)
             bg = (text_bgR, text_bgG, text_bgB)
@@ -609,9 +611,13 @@ def window(args):
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
                     drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
+                    #if num_vt > 0:
                     drawText(font, 20, text_pos7, f'Num VT: {num_vt}', fg, bg)
+                        #index += 1
+                    print(num_vn)
+                    #if num_vn > 0:
                     drawText(font, 20, text_pos8, f'Num VN: {num_vn}', fg, bg)
-
+                    #index = 0
  
                 pygame.display.flip()
                 clock.tick(120)###########
