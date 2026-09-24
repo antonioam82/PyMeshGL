@@ -611,13 +611,12 @@ def window(args):
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
                     drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
-                    #if num_vt > 0:
-                    drawText(font, 20, text_pos7, f'Num VT: {num_vt}', fg, bg)
-                        #index += 1
-                    print(num_vn)
-                    #if num_vn > 0:
-                    drawText(font, 20, text_pos8, f'Num VN: {num_vn}', fg, bg)
-                    #index = 0
+                    if num_vt > 0:
+                        drawText(font, 20, vtvn[index], f'Num VT: {num_vt}', fg, bg)
+                        index += 1
+                    if num_vn > 0:
+                        drawText(font, 20, vtvn[index], f'Num VN: {num_vn}', fg, bg)
+                    index = 0
  
                 pygame.display.flip()
                 clock.tick(120)###########
