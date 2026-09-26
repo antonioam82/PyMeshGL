@@ -133,9 +133,16 @@ def load_obj(filename, color, args):
                     nx = float(parts[1])
                     ny = float(parts[2])
                     nz = float(parts[3])
+<<<<<<< HEAD
                     normals.append([nx, ny, nz])
                     num_vn += 1
 
+=======
+                    #normal_coords.append([nx,ny,nz])
+                    num_vn += 1
+                    
+ 
+>>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
                 # FACES
                 elif parts[0] == 'f':
 
@@ -374,9 +381,19 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
+<<<<<<< HEAD
             vnvt = [text_pos7, text_pos8]
             index = 0
 
+=======
+            vtvn = [text_pos7, text_pos8]
+            index = 0
+
+            # COLORES TEXTO PANTALLA
+            fg = (0, 255, 0, 255)
+            bg = (text_bgR, text_bgG, text_bgB)
+ 
+>>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
             display = (args.window_width, args.window_height)
 
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
@@ -606,6 +623,7 @@ def window(args):
                     drawText(font, 20, text_pos1, f'Model: {model_name}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
                     view_mode = "Orthographic" if is_ortho else "Perspective"
+<<<<<<< HEAD
                     drawText(font, 20, text_pos3, f'View: {view_mode}', (0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
@@ -617,6 +635,19 @@ def window(args):
                         drawText(font, 20, text_pos8, f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     index = 0
 
+=======
+                    drawText(font, 20, text_pos3, f'View: {view_mode}', fg, bg)
+                    drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
+                    drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
+                    drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
+                    if num_vt > 0:
+                        drawText(font, 20, vtvn[index], f'Num VT: {num_vt}', fg, bg)
+                        index += 1
+                    if num_vn > 0:
+                        drawText(font, 20, vtvn[index], f'Num VN: {num_vn}', fg, bg)
+                    index = 0
+ 
+>>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
                 pygame.display.flip()
                 clock.tick(120)
 
@@ -643,7 +674,13 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
+<<<<<<< HEAD
 
+=======
+    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor). Needs '-fill/--fill_object' stored True")
+    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units). Needs '-fill/--fill_object' stored True")
+ 
+>>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
     args = parser.parse_args()
     window(args)
 
