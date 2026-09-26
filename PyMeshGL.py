@@ -108,7 +108,7 @@ def load_obj(filename,args):
                     ny = float(parts[2])
                     nz = float(parts[3])
                     #normal_coords.append([nx,ny,nz])
-                    num_vt += 1
+                    num_vn += 1
                     
  
                 # FACES
@@ -367,7 +367,9 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
-            
+            vtvn = [text_pos7, text_pos8]
+            index = 0
+
             # COLORES TEXTO PANTALLA
             fg = (0, 255, 0, 255)
             bg = (text_bgR, text_bgG, text_bgB)
@@ -609,9 +611,12 @@ def window(args):
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
                     drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
-                    drawText(font, 20, text_pos7, f'Num VT: {num_vt}', fg, bg)
-                    drawText(font, 20, text_pos8, f'Num VN: {num_vn}', fg, bg)
-
+                    if num_vt > 0:
+                        drawText(font, 20, vtvn[index], f'Num VT: {num_vt}', fg, bg)
+                        index += 1
+                    if num_vn > 0:
+                        drawText(font, 20, vtvn[index], f'Num VN: {num_vn}', fg, bg)
+                    index = 0
  
                 pygame.display.flip()
                 clock.tick(120)###########
@@ -644,8 +649,8 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
-    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor)")
-    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units)")
+    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor). Needs '-fill/--fill_object' stored True")
+    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units). Needs '-fill/--fill_object' stored True")
  
     args = parser.parse_args()
     if (args.factor != 1.0 or args.units != 1.0) and not args.fill_object:
