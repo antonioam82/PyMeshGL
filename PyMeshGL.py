@@ -67,6 +67,11 @@ def check_positive(v):
     return ivalue
 
 
+# =========================================================================
+# PARSER OBJ EXTENDIDO: ahora también lee 'vt' (coords. de textura) y
+# 'vn' (normales), y guarda por cada vértice de cada cara la tripleta
+# (v_idx, vt_idx, vn_idx) en vez de solo el índice de posición.
+# =========================================================================
 def load_obj(filename, color, args):
 
     vertices: list[list[float]] = []      # v  -> posiciones
@@ -133,16 +138,9 @@ def load_obj(filename, color, args):
                     nx = float(parts[1])
                     ny = float(parts[2])
                     nz = float(parts[3])
-<<<<<<< HEAD
                     normals.append([nx, ny, nz])
                     num_vn += 1
 
-=======
-                    #normal_coords.append([nx,ny,nz])
-                    num_vn += 1
-                    
- 
->>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
                 # FACES
                 elif parts[0] == 'f':
 
@@ -331,6 +329,18 @@ def setup_view_perspective(display):
     glTranslatef(0.0, 0.0, -10.0)
 
 def fill_object(faces, vertices, normals, use_normals):
+    """
+    Ahora, si el modelo trae 'vn' y se activa use_normals, se emite
+    glNormal3fv por cada vértice (usando la normal indicada en la cara)
+    antes de emitir la posición, lo que permite iluminación real con
+    GL_LIGHTING en vez del relleno plano de color fijo.
+
+    IMPORTANTE: el modo de dibujo (GL_TRIANGLES / GL_QUADS / GL_POLYGON)
+    se decide POR CADA CARA según su propio número de vértices, no con
+    un único valor global. Si un modelo mezcla triángulos, cuadriláteros
+    y n-gons, usar un solo glBegin(modo) para todas las caras corrompe
+    el relleno de las que no coinciden con ese modo.
+    """
     glEnable(GL_POLYGON_OFFSET_FILL)
     glPolygonOffset(1.0, 1.0)
 
@@ -381,19 +391,7 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
-<<<<<<< HEAD
-            vnvt = [text_pos7, text_pos8]
-            index = 0
 
-=======
-            vtvn = [text_pos7, text_pos8]
-            index = 0
-
-            # COLORES TEXTO PANTALLA
-            fg = (0, 255, 0, 255)
-            bg = (text_bgR, text_bgG, text_bgB)
- 
->>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
             display = (args.window_width, args.window_height)
 
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
@@ -499,7 +497,7 @@ def window(args):
                                 glDeleteLists(model_list, 1)
                                 model_list, green_val = build_model_list(use_normals)
                             else:
-                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' or '-fill/--fill_object' option not active." + Fore.RESET)
+                                print(Fore.YELLOW + "No hay datos 'vn' en el archivo o -fill no está activo." + Fore.RESET)
                         elif event.key == pygame.K_r:
                             quaternion = Quaternion(1, 0, 0, 0)
                             scale = args.scale
@@ -623,31 +621,13 @@ def window(args):
                     drawText(font, 20, text_pos1, f'Model: {model_name}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
                     view_mode = "Orthographic" if is_ortho else "Perspective"
-<<<<<<< HEAD
                     drawText(font, 20, text_pos3, f'View: {view_mode}', (0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos6, f'Num Edges: {num_edges}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    if num_vt > 0:
-                        drawText(font, 20, text_pos7, f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                        index += 1
-                    if num_vn > 0:
-                        drawText(font, 20, text_pos8, f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    index = 0
+                    drawText(font, 20, text_pos7, f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                    drawText(font, 20, text_pos8, f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
 
-=======
-                    drawText(font, 20, text_pos3, f'View: {view_mode}', fg, bg)
-                    drawText(font, 20, text_pos4, f'Num Verts: {num_verts}', fg, bg)
-                    drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}', fg, bg)
-                    drawText(font, 20, text_pos6, f'Num Edges: {num_edges}', fg, bg)
-                    if num_vt > 0:
-                        drawText(font, 20, vtvn[index], f'Num VT: {num_vt}', fg, bg)
-                        index += 1
-                    if num_vn > 0:
-                        drawText(font, 20, vtvn[index], f'Num VN: {num_vn}', fg, bg)
-                    index = 0
- 
->>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
                 pygame.display.flip()
                 clock.tick(120)
 
@@ -674,13 +654,7 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
-<<<<<<< HEAD
 
-=======
-    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor). Needs '-fill/--fill_object' stored True")
-    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units). Needs '-fill/--fill_object' stored True")
- 
->>>>>>> 2676dbb83dcb9594dcc6e91a44ad5b84bfa26937
     args = parser.parse_args()
     window(args)
 
