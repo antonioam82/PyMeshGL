@@ -391,6 +391,8 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
+            vnvt = [text_pos7, text_pos8]
+            index = 0
 
             display = (args.window_width, args.window_height)
 
@@ -497,7 +499,7 @@ def window(args):
                                 glDeleteLists(model_list, 1)
                                 model_list, green_val = build_model_list(use_normals)
                             else:
-                                print(Fore.YELLOW + "No hay datos 'vn' en el archivo o -fill no está activo." + Fore.RESET)
+                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' or '-fill/--fill_object' option inactive." + Fore.RESET)
                         elif event.key == pygame.K_r:
                             quaternion = Quaternion(1, 0, 0, 0)
                             scale = args.scale
@@ -625,8 +627,12 @@ def window(args):
                     drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     drawText(font, 20, text_pos6, f'Num Edges: {num_edges}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos7, f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos8, f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                    if num_vt > 0:
+                        drawText(font, 20, text_pos7, f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                        index += 1
+                    if num_vn > 0:
+                        drawText(font, 20, text_pos8, f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                    index = 0
 
                 pygame.display.flip()
                 clock.tick(120)
