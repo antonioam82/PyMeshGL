@@ -66,13 +66,7 @@ def check_positive(v):
         raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"This value must be positive ('{v}' is not valid)."+Fore.RESET+Style.RESET_ALL)
     return ivalue
 
-
-# =========================================================================
-# PARSER OBJ EXTENDIDO: ahora también lee 'vt' (coords. de textura) y
-# 'vn' (normales), y guarda por cada vértice de cada cara la tripleta
-# (v_idx, vt_idx, vn_idx) en vez de solo el índice de posición.
-# =========================================================================
-def load_obj(filename, color, args):
+def load_obj(filename, args):
 
     vertices: list[list[float]] = []      # v  -> posiciones
     tex_coords: list[list[float]] = []    # vt -> coords de textura (u, v[, w])
@@ -87,6 +81,7 @@ def load_obj(filename, color, args):
     polygon_verts: int = 0
     load_error: bool = False
     line_counter: int = 0
+    color = args.fill_object
 
     def resolve_index(idx_str, count):
         """Convierte un índice OBJ (1-based, o negativo relativo) a 0-based."""
@@ -328,7 +323,7 @@ def setup_view_perspective(display):
     glLoadIdentity()
     glTranslatef(0.0, 0.0, -10.0)
 
-def fill_object(faces, vertices, normals, use_normals):
+def fill_object(faces, vertices, normals, use_normals, factor, units):
     """
     Ahora, si el modelo trae 'vn' y se activa use_normals, se emite
     glNormal3fv por cada vértice (usando la normal indicada en la cara)
@@ -342,7 +337,7 @@ def fill_object(faces, vertices, normals, use_normals):
     el relleno de las que no coinciden con ese modo.
     """
     glEnable(GL_POLYGON_OFFSET_FILL)
-    glPolygonOffset(1.0, 1.0)
+    glPolygonOffset(factor, units)
 
     if not use_normals:
         glColor3f(0.0, 0.5, 0.0)
@@ -373,7 +368,7 @@ def window(args):
         model_name = os.path.basename(path)
         (vertices, edges, num_verts, num_triangles, num_edges, faces,
          polygon_verts, load_error, tex_coords, normals,
-         num_vt, num_vn) = load_obj(path, args.fill_object, args)
+         num_vt, num_vn) = load_obj(path, args)
 
         if not load_error:
             show_controls()
@@ -425,13 +420,15 @@ def window(args):
 
             has_normals = num_vn > 0
             use_normals = False  # se activa con la tecla 'U'
+            factor = args.factor
+            units = args.units
 
             ##
             scale = args.scale
             hide_data = False
             green_val = 255
             rotating = False
-
+      
             def build_model_list(use_normals_flag):
                 lst = glGenLists(1)
                 glNewList(lst, GL_COMPILE)
@@ -439,7 +436,7 @@ def window(args):
                 glLineWidth(args.line_width)
 
                 if args.fill_object:
-                    fill_object(faces, vertices, normals, use_normals_flag)
+                    fill_object(faces, vertices, normals, use_normals_flag, factor, units)
 
                 if args.bg_color == 'white':
                     glColor3f(0.0, 0.0, 0.0)
@@ -660,8 +657,13 @@ def main():
     parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
     parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
     parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
-
+    parser.add_argument('-f','--factor',type=float,default=1.0,help="Slope Scaling (Slope-Factor). Needs '-fill/--fill_object' stored True")
+    parser.add_argument('-u','--units',type=float,default=1.0,help="Minimum Phase Shift Units (Constant-Units). Needs '-fill/--fill_object' stored True")
+ 
     args = parser.parse_args()
+    if (args.factor != 1.0 or args.units != 1.0) and not args.fill_object:
+        parser.error("Arguments '-f/--factor' and '-u/--units' only can be used with '-fill/--fill_object' argument stored True")
+ 
     window(args)
 
 if __name__ =="__main__":
