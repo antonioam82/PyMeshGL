@@ -496,7 +496,8 @@ def window(args):
                                 glDeleteLists(model_list, 1)
                                 model_list, green_val = build_model_list(use_normals)
                             else:
-                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' or '-fill/--fill_object' option inactive." + Fore.RESET)
+                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' or option '-fill/--fill_object' is not activated." + Fore.RESET)
+
                         elif event.key == pygame.K_r:
                             quaternion = Quaternion(1, 0, 0, 0)
                             scale = args.scale
