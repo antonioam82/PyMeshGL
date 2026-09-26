@@ -324,18 +324,6 @@ def setup_view_perspective(display):
     glTranslatef(0.0, 0.0, -10.0)
 
 def fill_object(faces, vertices, normals, use_normals, factor, units):
-    """
-    Ahora, si el modelo trae 'vn' y se activa use_normals, se emite
-    glNormal3fv por cada vértice (usando la normal indicada en la cara)
-    antes de emitir la posición, lo que permite iluminación real con
-    GL_LIGHTING en vez del relleno plano de color fijo.
-
-    IMPORTANTE: el modo de dibujo (GL_TRIANGLES / GL_QUADS / GL_POLYGON)
-    se decide POR CADA CARA según su propio número de vértices, no con
-    un único valor global. Si un modelo mezcla triángulos, cuadriláteros
-    y n-gons, usar un solo glBegin(modo) para todas las caras corrompe
-    el relleno de las que no coinciden con ese modo.
-    """
     glEnable(GL_POLYGON_OFFSET_FILL)
     glPolygonOffset(factor, units)
 
