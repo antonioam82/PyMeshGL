@@ -397,14 +397,15 @@ def window(args):
                          rgb_colors[args.bg_color][1],
                          rgb_colors[args.bg_color][2],
                          rgb_colors[args.bg_color][3])
-
-            # Preparar iluminación básica (se activa/desactiva con 'U')
-            glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 0.0, 1.0, 0.0))
-            glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.6, 0.85, 0.6, 1.0))
-            glLightfv(GL_LIGHT0, GL_AMBIENT, (0.15, 0.15, 0.15, 1.0))
-            glEnable(GL_COLOR_MATERIAL)
-            glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-            glColor3f(0.0, 0.5, 0.0)
+            
+            if num_vn > 0 and args.fill_object:
+                # Preparar iluminación básica (se activa/desactiva con 'U')
+                glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 0.0, 1.0, 0.0))
+                glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.6, 0.85, 0.6, 1.0))
+                glLightfv(GL_LIGHT0, GL_AMBIENT, (0.15, 0.15, 0.15, 1.0))
+                glEnable(GL_COLOR_MATERIAL)
+                glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+                glColor3f(0.0, 0.5, 0.0)
 
             has_normals = num_vn > 0
             use_normals = False  # se activa con la tecla 'U'
