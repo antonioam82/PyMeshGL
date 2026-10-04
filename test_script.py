@@ -21,7 +21,7 @@ def check_item(item):
     items = ['faces','edges','vertices','tex_coords',
              'normals','none']
     if item not in items:
-        raise argparse.ArgumentTypeError("Item must be 'faces', 'edges', 'vertices' or 'none'.")
+        raise argparse.ArgumentTypeError("Item must be 'faces', 'edges', 'vertices', 'tex_coords', 'normals' or 'none'.")
     return item
 
 def main():
@@ -29,7 +29,7 @@ def main():
                                      description="Check obj reading",allow_abbrev=False)
     parser.add_argument('-load','--load_object',required=True,type=check_source_ext,help="Obj model to load")
     parser.add_argument('-item','--show_item',required=True,type=check_item,help="Info to show")
-    parser.add_argument('-fill','--fill_object',action='store_true',help='Use color (debe llamarse fill_object: load_obj() lo lee como args.fill_object)')
+    parser.add_argument('-fill','--fill_object',action='store_true',help='Use color')
     parser.add_argument('-ec','--enable_centering',action='store_true', help='Center model')
     parser.add_argument('-of','--only_first',type=int,default=None,help='item index start')
     parser.add_argument('-nvl','--num_verts_list',action='store_true',help='Show polygon verts list')
