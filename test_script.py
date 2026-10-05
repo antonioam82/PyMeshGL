@@ -25,8 +25,11 @@ def check_item(item):
     return item
 
 def main():
-    parser = argparse.ArgumentParser(prog="script_prueba", conflict_handler='resolve',
-                                     description="Check obj reading",allow_abbrev=False)
+    parser = argparse.ArgumentParser(prog="test_script", conflict_handler='resolve',
+                                     description='''PyMeshGL diagnostic tool: loads an .obj file with load_obj()
+                                     (the same parser used by PyMeshGL.py) and prints its data to the console -vertices, 
+                                     edges, faces, texture coordinates (vt) and normals (vn)- without opening any OpenGL window. 
+                                     Handy for quickly checking that a model is being read as expected.''',allow_abbrev=False)
     parser.add_argument('-load','--load_object',required=True,type=check_source_ext,help="Obj model to load")
     parser.add_argument('-item','--show_item',required=True,type=check_item,help="Info to show")
     parser.add_argument('-fill','--fill_object',action='store_true',help='Use color')
