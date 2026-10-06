@@ -70,38 +70,38 @@ def main():
         print('-'*30)
         if item_ != 'none':
             if item_ == 'vertices':
-               if args.head:
+               if args.head and args.head < nv:
                    print(f'VERTICES:\n{v[:args.head]}','...')
-               elif args.tail:
+               elif args.tail and args.tail < nv:
                    print(f'VERTICES:\n... {v[-args.tail:]}')
                else:
                    print(f'VERTICES:\n{v}')
             elif item_ == 'edges':
-                if args.head:
+                if args.head and args.head < ne:
                    print(f'EDGES:\n{list(islice(e,args.head))}','...')
-                elif args.tail:
+                elif args.tail and args.tail < ne:
                    last_values = list(deque(e, maxlen=args.tail))
                    print(f'EDGES:\n... {last_values}')
                 else:
                     print(f'EDGES:\n{e}')
             elif item_ == 'faces':
-                if args.head:
+                if args.head and args.head < nt:
                     print(f'FACES:\n{f[:args.head]}','...')
-                elif args.tail:
+                elif args.tail and args.tail < nt:
                     print(f'FACES:\n... {f[-args.tail:]}')
                 else:
                     print(f'FACES:\n{f}')
             elif item_ == 'tex_coords':
-                if args.head:
+                if args.head and args.head < nvt:
                     print(f'TEXTURE COORDS:\n{tc[:args.head]}','...')
-                elif args.tail:
+                elif args.tail and args.tail < nvt:
                     print(f'TEXTURE COORDS:\n... {tc[-args.tail:]}')
                 else:
                     print(f'TEXTURE COORDS:\n{tc}')
             elif item_ == 'normals':
-                if args.head:
+                if args.head and args.head < nvn:
                     print(f'NORMALS:\n{n[:args.head]}','...')
-                elif args.tail:
+                elif args.tail and args.tail < nvn:
                     print(f'NORMALS:\n... {n[-args.tail:]}')
                 else:
                     print(f'NORMALS:\n{n}')
