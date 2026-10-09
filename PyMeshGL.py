@@ -249,7 +249,7 @@ def show_controls():
     print("  - 'U' Key: Toggle normal-based lighting (requires 'vn' data + -fill)")
 
     print("\nMiscellaneous:")
-    print("  - 'H' Key: Toggle the visibility of on-screen information (model name, scale, view mode)")
+    print("  - 'H' Key: Toggle the visibility of on-screen information (model name, scale, view mode ...)")
     print("  - ESC Key: Exit the program")
 
     print("\n----------------------------------------------------")
