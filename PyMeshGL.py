@@ -374,7 +374,8 @@ def window(args):
             text_pos6 = text_pos(args.window_height,470)
             text_pos7 = text_pos(args.window_height,450)
             text_pos8 = text_pos(args.window_height,430)
-            vnvt = [text_pos7, text_pos8]
+            text_pos9 = text_pos(args.window_height,410)
+            vnvt = [text_pos7, text_pos8, text_pos9]
             index = 0
 
             display = (args.window_width, args.window_height)
@@ -617,7 +618,10 @@ def window(args):
                         drawText(font, 20, vnvt[index], f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                         index += 1
                     if num_vn > 0:
-                        drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                        #drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                        drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
+                        index+=1
+                        drawText(font, 20, vnvt[index], f'Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                     index = 0
 
                 pygame.display.flip()
