@@ -5,7 +5,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from pathlib import Path
 import os
-#import re
 import math
 import numpy as np
 import argparse
@@ -176,6 +175,7 @@ def load_obj(filename, args):
                         edges.add(tuple(sorted((v1, v2))))
 
         num_edges = len(edges)
+        ordered_edges = sorted(list(edges))
 
         # CENTERING
         if args.enable_centering and vertices:
@@ -190,7 +190,7 @@ def load_obj(filename, args):
         print(f"FILE ERROR ON LINE {line_counter}: {str(e)}")
         load_error = True
 
-    return (vertices, edges, num_verts, num_triangles, num_edges, faces,
+    return (vertices, ordered_edges, num_verts, num_triangles, num_edges, faces,
             polygon_verts, load_error, tex_coords, normals, num_vt, num_vn)
 
 
@@ -419,13 +419,15 @@ def window(args):
             rotating = False
 
             def build_model_list(use_normals_flag):
+                #glEnable(GL_POLYGON_OFFSET_FILL)#--------------------->
+                #glPolygonOffset(0.0, 0.0)#       --------------------->
                 lst = glGenLists(1)
                 glNewList(lst, GL_COMPILE)
 
                 glLineWidth(args.line_width)
                 glBegin(GL_LINES)
-                ordered_edges = sorted(list(edges))
-                for edge in ordered_edges:
+            
+                for edge in edges:
 
                     '''if edge == ordered_edges[18000]:
                         glColor(1.0,0.0,0.0)'''
@@ -622,7 +624,6 @@ def window(args):
                         drawText(font, 20, vnvt[index], f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                         index += 1
                     if num_vn > 0:
-                        #drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn} | Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                         drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
                         index+=1
                         drawText(font, 20, vnvt[index], f'Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
