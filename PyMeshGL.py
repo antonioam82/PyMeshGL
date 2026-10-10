@@ -176,6 +176,7 @@ def load_obj(filename, args):
                         edges.add(tuple(sorted((v1, v2))))
 
         num_edges = len(edges)
+        ordered_edges = sorted(list(edges))
 
         # CENTERING
         if args.enable_centering and vertices:
@@ -190,7 +191,7 @@ def load_obj(filename, args):
         print(f"FILE ERROR ON LINE {line_counter}: {str(e)}")
         load_error = True
 
-    return (vertices, edges, num_verts, num_triangles, num_edges, faces,
+    return (vertices, ordered_edges, num_verts, num_triangles, num_edges, faces,
             polygon_verts, load_error, tex_coords, normals, num_vt, num_vn)
 
 
@@ -424,8 +425,9 @@ def window(args):
 
                 glLineWidth(args.line_width)
                 glBegin(GL_LINES)
-                ordered_edges = sorted(list(edges))
-                for edge in ordered_edges:
+                #ordered_edges = sorted(list(edges))
+                #for edge in ordered_edges:
+                for edge in edges:
 
                     '''if edge == ordered_edges[18000]:
                         glColor(1.0,0.0,0.0)'''
