@@ -12,7 +12,7 @@ import argparse
 from colorama import init, Fore, Style
 import time
 
-# load_obj4c5.py -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500 -height 770 -lw 0.3
+# pymeshgl -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500 -height 770 -lw 0.3
 
 init()
 
@@ -348,7 +348,6 @@ def fill_object(faces, vertices, normals, use_normals, factor, units):
 
     glDisable(GL_POLYGON_OFFSET_FILL)
 
-
 def window(args):
     # Cargar el modelo OBJ
     try:
@@ -418,7 +417,7 @@ def window(args):
             hide_data = False
             green_val = 255
             rotating = False
-      
+
             def build_model_list(use_normals_flag):
                 lst = glGenLists(1)
                 glNewList(lst, GL_COMPILE)
@@ -427,6 +426,10 @@ def window(args):
                 glBegin(GL_LINES)
                 ordered_edges = sorted(list(edges))
                 for edge in ordered_edges:
+
+                    '''if edge == ordered_edges[18000]:
+                        glColor(1.0,0.0,0.0)'''
+
                     for vertex in edge:
                         glVertex3fv(vertices[vertex])
                 glEnd()
@@ -444,6 +447,7 @@ def window(args):
                 glEndList()
                 return lst, edge_green
 
+            # CONSTRUCCIÓN DE LISTA DEL MODELO
             model_list, green_val = build_model_list(use_normals)
 
             is_ortho = False
