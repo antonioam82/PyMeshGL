@@ -35,7 +35,7 @@ def main():
     parser.add_argument('-item','--show_item',required=True,type=check_item,help="Info to show")
     parser.add_argument('-fill','--fill_object',action='store_true',help='Use color')
     parser.add_argument('-ec','--enable_centering',action='store_true', help='Center model')
-    parser.add_argument('-nvl','--num_verts_list',action='store_true',help='Show polygon verts list')
+    parser.add_argument('-nvl','--num_verts_list',action='store_true',help='List the distinct number of vertices found per face (e.g. 3 = triangles, 4 = quads, 5+ = n-gons). Useful to check whether a model is fully triangulated.')
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-hd', '--head', type=int, default=None,help='Show first N items')
@@ -50,10 +50,9 @@ def main():
         v, e, nv, nt, ne, f, pv, le, tc, n, nvt, nvn = load_obj(filename, args)
 
         if args.num_verts_list:
-            npv = set()
-            for face in f:
-                npv.add(len(face))
-            print(f"\nPOLYGON VERTS LIST: {npv}")
+            npv = sorted({len(face) for face in f})
+            print(f"\nNUMBER OF DISTINCT VERTEX COUNTS PER FACE: {len(npv)}")
+            print(f"POLYGON TYPES FOUND: {npv}")
 
         item_ = args.show_item
         long = abs(30-(len(filename)))
