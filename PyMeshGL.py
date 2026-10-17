@@ -189,6 +189,7 @@ def load_obj(filename, args):
     except Exception as e:
         print(f"FILE ERROR ON LINE {line_counter}: {str(e)}")
         load_error = True
+        ordered_edges = None
 
     return (vertices, ordered_edges, num_verts, num_triangles, num_edges, faces,
             polygon_verts, load_error, tex_coords, normals, num_vt, num_vn)
