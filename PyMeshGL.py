@@ -3,208 +3,309 @@ import pygame
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from pathlib import Path
 import os
 import math
-import numpy as np
-import argparse
-from colorama import init, Fore, Style
 import time
+import argparse
+from array import array
+from dataclasses import dataclass
+from typing import Optional
+import numpy as np
+from colorama import init, Fore, Style
 
-# pymeshgl -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500 -height 770 -lw 0.3
+# pymeshgl -load 10477_Satellite_v1_L3.obj -ec -scl 0.001 -zr 0.0001 -width 1500
 
 init()
 
-rgb_colors = {'blue':[0.0,0.0,1.0,1.0],
-              'gray':[0.2,0.2,0.2,1.0],
-              'black':[0.0,0.0,0.0,1.0],
-              'white':[1.0,1.0,1.0,1.0]}
+rgb_colors = {'blue':  [0.0, 0.0, 1.0, 1.0],
+              'gray':  [0.2, 0.2, 0.2, 1.0],
+              'black': [0.0, 0.0, 0.0, 1.0],
+              'white': [1.0, 1.0, 1.0, 1.0]}
 
-rgb_t = {'blue':[0,0,255],
-               'gray':[51,51,51],
-               'black':[0,0,0],
-               'white':[255,255,255]}
+rgb_t = {'blue':  [0, 0, 255],
+         'gray':  [51, 51, 51],
+         'black': [0, 0, 0],
+         'white': [255, 255, 255]}
+
+CACHE_SUFFIX = ".pymeshgl.npz"
+CACHE_VERSION = 1
+FLUSH_EVERY = 900_000          # nº de strings numéricos acumulados antes de convertir a NumPy
 
 def check_width_value(width):
     val = int(width)
     if val < 800 or val > 1600:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"Width value must be less than 1601 and greater than 799."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + "Width value must be between 800 and 1600" + Style.RESET_ALL)
     return val
 
 def check_height_value(height):
     val = int(height)
     if val < 600 or val > 900:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"Height value must be less than 901 and greater than 599."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + "Height value must be between 600 and 900" + Style.RESET_ALL)
     return val
 
 def check_source_ext(file):
     if os.path.exists(file):
-        supported_formats = [".obj",".txt"]
+        supported_formats = [".obj", ".txt"]
         name, ex = os.path.splitext(file)
         if not ex in supported_formats:
-            raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"Source file must be '.obj' or 'txt' ('{ex}' is not valid)."+Fore.RESET+Style.RESET_ALL)
+            raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"Source file format not supported: {ex} (use {', '.join(supported_formats)})" + Style.RESET_ALL)
     else:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"FILE NOT FOUND: file or path '{file}' not found."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"FILE NOT FOUND: {file}" + Style.RESET_ALL)
     return file
 
 def check_color(color):
-    colors = ['blue','gray','black','white']
+    colors = ['blue', 'gray', 'black', 'white']
     if color not in colors:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+"Background color must be 'blue', 'white', 'gray' or 'black'."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"Background color must be one of: {', '.join(colors)}" + Style.RESET_ALL)
     return color
 
 def check_lw(w):
     width = float(w)
     if width < 0.1 or width > 10.0:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+"Line width must be in range 0.1 - 10.0."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + "Line width must be between 0.1 and 10.0" + Style.RESET_ALL)
     return width
 
 def check_positive(v):
     ivalue = float(v)
     if ivalue <= 0:
-        raise argparse.ArgumentTypeError(Fore.RED+Style.BRIGHT+f"This value must be positive ('{v}' is not valid)."+Fore.RESET+Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"This value must be greater than 0 (got {v})" + Style.RESET_ALL)
     return ivalue
 
-def load_obj(filename, args):
 
-    vertices: list[list[float]] = []      # v  -> posiciones
-    tex_coords: list[list[float]] = []    # vt -> coords de textura (u, v[, w])
-    normals: list[list[float]] = []       # vn -> normales
-    faces: list[list[dict]] = []          # cada cara = lista de {'v','vt','vn'}
-    edges: set[tuple[int, int]] = set()   # edges siguen basados en índice de posición
-    num_verts: int = 0
-    num_triangles: int = 0
-    num_edges: int = 0
-    num_vt: int = 0
-    num_vn: int = 0
-    polygon_verts: int = 0
-    load_error: bool = False
-    line_counter: int = 0
-    color = args.fill_object
+# ----------------------------------------------------------------------------
+# Carga del modelo
+# ----------------------------------------------------------------------------
+@dataclass
+class Mesh:
+    vertices: np.ndarray                 # (N, 3) float32
+    edges: np.ndarray                    # (M, 2) uint32, únicas y ordenadas
+    normals: np.ndarray                  # (K, 3) float32
+    tri_v: Optional[np.ndarray]          # (T*3,) uint32  índices de posición (triangulado en abanico)
+    tri_vn: Optional[np.ndarray]         # (T*3,) int32   índices de normal (-1 = sin normal)
+    num_verts: int
+    num_faces: int
+    num_edges: int
+    num_vt: int
+    num_vn: int
 
-    def resolve_index(idx_str, count):
-        """Convierte un índice OBJ (1-based, o negativo relativo) a 0-based."""
-        if idx_str == '':
-            return None
-        idx = int(idx_str)
-        if idx < 0:
-            return count + idx
-        return idx - 1
+
+def _flush(flat, chunks):
+    """Convierte los strings acumulados a un bloque float32 (N,3)."""
+    if flat:
+        chunks.append(np.array(flat, dtype=np.float32).reshape(-1, 3))
+        flat.clear()
+
+
+def parse_obj(filename, need_faces):
+    """Parsea el OBJ sin diccionarios por vértice y construye aristas/triángulos con NumPy."""
+    v_flat, n_flat = [], []
+    v_chunks, n_chunks = [], []
+    face_v = array('i')      # índices de posición de todas las caras, aplanados
+    face_vn = array('i')     # índices de normal (solo si need_faces)
+    face_len = array('i')    # nº de vértices de cada cara
+    nv = nvt = nvn = nf = 0
+    line_counter = 0
 
     try:
-        with open(filename, 'r') as file:
-
-            for line in file:
-                line = line.strip(); line_counter += 1
-                if not line or line.startswith('#'):
-                    continue
-
+        with open(filename, 'r', errors='replace') as fh:
+            for line in fh:
+                line_counter += 1
                 parts = line.split()
                 if not parts:
                     continue
+                tag = parts[0]
 
-                # VERTICES (posición)
-                if parts[0] == 'v':
+                if tag == 'v':
                     if len(parts) < 4:
                         continue
-                    vertex = [
-                        float(parts[1]),
-                        float(parts[2]),
-                        float(parts[3])
-                    ]
-                    vertices.append(vertex)
-                    num_verts += 1
+                    v_flat.extend(parts[1:4])
+                    nv += 1
+                    if len(v_flat) >= FLUSH_EVERY:
+                        _flush(v_flat, v_chunks)
 
-                # COORDENADAS DE TEXTURA
-                elif parts[0] == 'vt':
-                    if len(parts) < 3:
+                elif tag == 'f':
+                    fv, fn = [], []
+                    for tok in parts[1:]:
+                        # soporta v, v/vt, v//vn, v/vt/vn y índices negativos
+                        if '/' in tok:
+                            vals = tok.split('/')
+                            if not vals[0]:
+                                continue
+                            vi = int(vals[0])
+                            ni = -1
+                            if need_faces and len(vals) >= 3 and vals[2]:
+                                k = int(vals[2])
+                                ni = nvn + k if k < 0 else k - 1
+                        else:
+                            vi = int(tok)
+                            ni = -1
+                        fv.append(nv + vi if vi < 0 else vi - 1)
+                        fn.append(ni)
+
+                    if len(fv) < 3:
                         continue
-                    u = float(parts[1])
-                    v = float(parts[2])
-                    w = float(parts[3]) if len(parts) > 3 else 0.0
-                    tex_coords.append([u, v, w])
-                    num_vt += 1
+                    face_v.extend(fv)
+                    face_len.append(len(fv))
+                    if need_faces:
+                        face_vn.extend(fn)
+                    nf += 1
 
-                # NORMALES
-                elif parts[0] == 'vn':
+                elif tag == 'vn':
                     if len(parts) < 4:
                         continue
-                    nx = float(parts[1])
-                    ny = float(parts[2])
-                    nz = float(parts[3])
-                    normals.append([nx, ny, nz])
-                    num_vn += 1
+                    n_flat.extend(parts[1:4])
+                    nvn += 1
+                    if len(n_flat) >= FLUSH_EVERY:
+                        _flush(n_flat, n_chunks)
 
-                # FACES
-                elif parts[0] == 'f':
+                elif tag == 'vt':
+                    if len(parts) >= 3:
+                        nvt += 1        # las coords de textura no se dibujan: solo se cuentan
 
-                    face_verts: list[dict] = []
-                    for part in parts[1:]:
+        _flush(v_flat, v_chunks)
+        _flush(n_flat, n_chunks)
+    except Exception as e:
+        raise ValueError(f"LINE {line_counter}: {e}") from e
 
-                        # soporta v, v/vt, v//vn, v/vt/vn
-                        vals = part.split('/')
+    if nv == 0:
+        raise ValueError("the file has no vertices")
 
-                        v_idx = resolve_index(vals[0], len(vertices)) if vals[0] != '' else None
-                        vt_idx = None
-                        vn_idx = None
+    vertices = np.concatenate(v_chunks)
+    normals = np.concatenate(n_chunks) if n_chunks else np.zeros((0, 3), dtype=np.float32)
 
-                        if len(vals) >= 2:
-                            vt_idx = resolve_index(vals[1], len(tex_coords)) if vals[1] != '' else None
-                        if len(vals) >= 3:
-                            vn_idx = resolve_index(vals[2], len(normals)) if vals[2] != '' else None
+    if nf == 0:
+        edges = np.zeros((0, 2), dtype=np.uint32)
+        tri_v = np.zeros(0, dtype=np.uint32) if need_faces else None
+        tri_vn = np.zeros(0, dtype=np.int32) if need_faces else None
+        return Mesh(vertices, edges, normals, tri_v, tri_vn, nv, 0, 0, nvt, nvn)
 
-                        if v_idx is None:
-                            continue
+    V = np.frombuffer(face_v, dtype=np.intc).astype(np.int64)
+    flen = np.frombuffer(face_len, dtype=np.intc).astype(np.int64)
 
-                        face_verts.append({'v': v_idx, 'vt': vt_idx, 'vn': vn_idx})
+    if V.min() < 0 or V.max() >= nv:
+        raise ValueError("a face references a vertex that does not exist")
 
-                    if len(face_verts) < 3:
-                        continue
+    starts = np.cumsum(flen) - flen
+    total = V.size
 
-                    polygon_verts = len(face_verts)
+    # ---- aristas (borde de cada polígono original), únicas y ordenadas ----
+    rep_starts = np.repeat(starts, flen)
+    rep_len = np.repeat(flen, flen)
+    idx = np.arange(total, dtype=np.int64)
+    nxt = np.where(idx - rep_starts == rep_len - 1, rep_starts, idx + 1)
+    a = V
+    b = V[nxt]
+    lo = np.minimum(a, b)
+    hi = np.maximum(a, b)
+    keys = np.unique(lo * nv + hi)
+    edges = np.stack([keys // nv, keys % nv], axis=1).astype(np.uint32)
+    del rep_starts, rep_len, idx, nxt, a, b, lo, hi, keys
 
-                    if color:
-                        faces.append(face_verts)
+    # ---- triangulación en abanico (0, i, i+1) para el relleno ----
+    tri_v = tri_vn = None
+    if need_faces:
+        ntri = flen - 2
+        tcount = int(ntri.sum())
+        tface = np.repeat(np.arange(nf, dtype=np.int64), ntri)
+        tstart = np.cumsum(ntri) - ntri
+        local = np.arange(tcount, dtype=np.int64) - np.repeat(tstart, ntri) + 1
+        base = starts[tface]
+        sel = np.stack([base, base + local, base + local + 1], axis=1).ravel()
+        tri_v = V[sel].astype(np.uint32)
 
-                    num_triangles += 1
+        VN = np.frombuffer(face_vn, dtype=np.intc).astype(np.int32)
+        VN[(VN < 0) | (VN >= nvn)] = -1
+        tri_vn = VN[sel]
 
-                    # generar edges (a partir de los índices de posición)
-                    for i in range(len(face_verts)):
-                        v1 = face_verts[i]['v']
-                        v2 = face_verts[(i + 1) % len(face_verts)]['v']
-                        edges.add(tuple(sorted((v1, v2))))
+    return Mesh(vertices, edges, normals, tri_v, tri_vn, nv, nf, edges.shape[0], nvt, nvn)
 
-        num_edges = len(edges)
-        ordered_edges = sorted(list(edges))
 
-        # CENTERING
-        if args.enable_centering and vertices:
-            verts_np = np.array(vertices)
-            min_v = np.min(verts_np, axis=0)
-            max_v = np.max(verts_np, axis=0)
-            center = (min_v + max_v) / 2.0
+def read_cache(filename, need_faces):
+    cp = filename + CACHE_SUFFIX
+    try:
+        if not os.path.exists(cp) or os.path.getmtime(cp) < os.path.getmtime(filename):
+            return None
+        with np.load(cp) as d:
+            if int(d['version']) != CACHE_VERSION:
+                return None
+            if need_faces and not bool(d['has_faces']):
+                return None
+            counts = d['counts']
+            tri_v = d['tri_v'] if bool(d['has_faces']) else None
+            tri_vn = d['tri_vn'] if bool(d['has_faces']) else None
+            edges = d['edges']
+            return Mesh(d['vertices'], edges, d['normals'], tri_v, tri_vn,
+                        int(counts[0]), int(counts[1]), edges.shape[0], int(counts[2]), int(counts[3]))
+    except Exception as e:
+        print(Fore.YELLOW + f"Cache ignored ({e})" + Style.RESET_ALL)
+        return None
 
-            vertices = [list(np.array(v) - center) for v in vertices]
+
+def write_cache(filename, mesh):
+    cp = filename + CACHE_SUFFIX
+    has_faces = mesh.tri_v is not None
+    try:
+        np.savez(cp,
+                 version=np.array(CACHE_VERSION),
+                 has_faces=np.array(has_faces),
+                 counts=np.array([mesh.num_verts, mesh.num_faces, mesh.num_vt, mesh.num_vn], dtype=np.int64),
+                 vertices=mesh.vertices,
+                 edges=mesh.edges,
+                 normals=mesh.normals,
+                 tri_v=mesh.tri_v if has_faces else np.zeros(0, dtype=np.uint32),
+                 tri_vn=mesh.tri_vn if has_faces else np.zeros(0, dtype=np.int32))
+    except Exception as e:
+        print(Fore.YELLOW + f"Could not write cache: {e}" + Style.RESET_ALL)
+
+
+def load_obj(filename, args):
+    """Devuelve un Mesh, o None si hubo error de lectura."""
+    try:
+        mesh = None
+        if args.use_cache:
+            mesh = read_cache(filename, args.fill_object)
+            if mesh is not None:
+                print("Loaded from cache")
+
+        if mesh is None:
+            # con caché se parsean también las caras, para que el .npz sirva con y sin -fill
+            mesh = parse_obj(filename, args.fill_object or args.use_cache)
+            if args.use_cache:
+                write_cache(filename, mesh)
+
+        # CENTERING (se aplica después de la caché, que guarda los datos originales)
+        if args.enable_centering and mesh.vertices.shape[0] > 0:
+            center = ((mesh.vertices.min(axis=0).astype(np.float64) +
+                       mesh.vertices.max(axis=0)) / 2.0).astype(np.float32)
+            mesh.vertices -= center
+
+        if not args.fill_object:
+            mesh.tri_v = None
+            mesh.tri_vn = None
+
+        return mesh
 
     except Exception as e:
-        print(f"FILE ERROR ON LINE {line_counter}: {str(e)}")
-        load_error = True
-        ordered_edges = None
-
-    return (vertices, ordered_edges, num_verts, num_triangles, num_edges, faces,
-            polygon_verts, load_error, tex_coords, normals, num_vt, num_vn)
+        print(f"FILE ERROR {str(e)}")
+        return None
 
 
+# ----------------------------------------------------------------------------
+# Texto en pantalla
+# ----------------------------------------------------------------------------
 _text_cache: dict = {}
 
 def drawText(f, x, y, text, c, bgc):
     if text not in _text_cache:
+        if len(_text_cache) > 256:          # evita crecer sin límite al hacer zoom ("Scale: ...")
+            _text_cache.clear()
         textSurface = f.render(text, True, c, bgc)
         textData = pygame.image.tostring(textSurface, "RGBA", True)
         _text_cache[text] = (textSurface.get_width(), textSurface.get_height(), textData)
     w, h, data = _text_cache[text]
     glWindowPos2d(x, y)
     glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, data)
+
 
 def show_controls():
     print("\n--------------------- Controls ---------------------")
@@ -250,14 +351,15 @@ def show_controls():
     print("  - 'U' Key: Toggle normal-based lighting (requires 'vn' data + -fill)")
 
     print("\nMiscellaneous:")
-    print("  - 'H' Key: Toggle the visibility of on-screen information (model name, scale, view mode ...)")
+    print("  - 'H' Key: Toggle the visibility of on-screen information")
     print("  - ESC Key: Exit the program")
 
     print("\n----------------------------------------------------")
 
 
-
-# Clase para manejar cuaterniones
+# ----------------------------------------------------------------------------
+# Cuaterniones
+# ----------------------------------------------------------------------------
 class Quaternion:
     def __init__(self, w, x, y, z):
         self.w = w
@@ -293,29 +395,33 @@ class Quaternion:
             return Quaternion(1, 0, 0, 0)
         return Quaternion(self.w / mag, self.x / mag, self.y / mag, self.z / mag)
 
-# Función para crear un cuaternión de rotación
+
 def create_rotation_quaternion(angle, x, y, z):
     half_angle = math.radians(angle) / 2.0
     sin_half_angle = math.sin(half_angle)
     return Quaternion(math.cos(half_angle), x * sin_half_angle, y * sin_half_angle, z * sin_half_angle)
 
-# Función para inicializar la proyección ortogonal
+
+# ----------------------------------------------------------------------------
+# Vistas
+# ----------------------------------------------------------------------------
 def setup_view_ortho(display):
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
 
     aspect_ratio = display[0] / display[1]
     ortho_size = 10
-    glOrtho(-ortho_size * 0.5 * aspect_ratio, ortho_size * 0.5 * aspect_ratio, -ortho_size * 0.5, ortho_size * 0.5, -50, 50)
+    # (near/far reconstruidos: usa los tuyos si eran distintos)
+    glOrtho(-ortho_size * 0.5 * aspect_ratio, ortho_size * 0.5 * aspect_ratio,
+            -ortho_size * 0.5, ortho_size * 0.5, 0.01, 1000.0)
 
     glMatrixMode(GL_MODELVIEW)
 
-def text_pos(h,p):
+def text_pos(h, p):
     inc_total = (h - 600)
     h_pos = p + inc_total
     return h_pos
 
-# Función para inicializar la proyección en perspectiva
 def setup_view_perspective(display):
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -324,68 +430,169 @@ def setup_view_perspective(display):
     glLoadIdentity()
     glTranslatef(0.0, 0.0, -10.0)
 
-def fill_object(faces, vertices, normals, use_normals, factor, units):
-    glEnable(GL_POLYGON_OFFSET_FILL)
-    glPolygonOffset(factor, units)
 
-    if not use_normals:
-        glColor3f(0.0, 0.5, 0.0)
+# ----------------------------------------------------------------------------
+# Modelo en GPU (VBO / EBO)
+# ----------------------------------------------------------------------------
+def _upload(target, data):
+    data = np.ascontiguousarray(data)
+    buf = glGenBuffers(1)
+    glBindBuffer(target, buf)
+    glBufferData(target, data.nbytes, data, GL_STATIC_DRAW)
+    return buf
 
-    for face in faces:
-        n = len(face)
-        if n == 3:
-            mode = GL_TRIANGLES
-        elif n == 4:
-            mode = GL_QUADS
-        else:
-            mode = GL_POLYGON
 
-        glBegin(mode)
-        for vinfo in face:
-            if use_normals and vinfo['vn'] is not None and vinfo['vn'] < len(normals):
-                glNormal3fv(normals[vinfo['vn']])
-            glVertex3fv(vertices[vinfo['v']])
-        glEnd()
+class GLModel:
+    """Sube la geometría a la GPU una sola vez y la dibuja con glDrawElements."""
 
-    glDisable(GL_POLYGON_OFFSET_FILL)
+    def __init__(self, mesh, fill):
+        self.buffers = []
 
+        # --- aristas ---
+        self.vbo_pos = _upload(GL_ARRAY_BUFFER, mesh.vertices.astype(np.float32, copy=False))
+        self.ebo_lines = _upload(GL_ELEMENT_ARRAY_BUFFER, mesh.edges.ravel().astype(np.uint32, copy=False))
+        self.n_lines = int(mesh.edges.size)
+        self.buffers += [self.vbo_pos, self.ebo_lines]
+
+        # --- relleno ---
+        self.n_fill = 0
+        self.vbo_fill = self.vbo_pos
+        self.vbo_norm = None
+        self.ebo_fill = None
+
+        if fill and mesh.tri_v is not None and mesh.tri_v.size > 0:
+            tri_v, tri_vn = mesh.tri_v, mesh.tri_vn
+
+            if mesh.num_vn > 0:
+                # En OBJ v y vn se indexan por separado; OpenGL necesita un único índice.
+                # Se crea un vértice por cada pareja (v, vn) distinta.
+                m = mesh.num_vn + 1
+                key = tri_v.astype(np.int64) * m + (tri_vn.astype(np.int64) + 1)
+                uniq, inv = np.unique(key, return_inverse=True)
+                uv = uniq // m
+                un = (uniq % m) - 1
+                pos = mesh.vertices[uv].astype(np.float32)
+                nrm = np.zeros((uniq.size, 3), dtype=np.float32)
+                nrm[:, 2] = 1.0
+                ok = un >= 0
+                nrm[ok] = mesh.normals[un[ok]]
+                idx = inv.reshape(-1).astype(np.uint32)
+
+                self.vbo_fill = _upload(GL_ARRAY_BUFFER, pos)
+                self.vbo_norm = _upload(GL_ARRAY_BUFFER, nrm)
+                self.buffers += [self.vbo_fill, self.vbo_norm]
+            else:
+                idx = tri_v.astype(np.uint32, copy=False)
+
+            self.ebo_fill = _upload(GL_ELEMENT_ARRAY_BUFFER, idx)
+            self.n_fill = int(idx.size)
+            self.buffers.append(self.ebo_fill)
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        # los datos ya viven en la GPU: se libera la copia de relleno en RAM
+        mesh.tri_v = None
+        mesh.tri_vn = None
+
+    def draw(self, edge_color, line_width, lighting, factor, units):
+        glEnableClientState(GL_VERTEX_ARRAY)
+
+        # aristas (siempre sin iluminación, con el color de línea)
+        glDisable(GL_LIGHTING)
+        glColor3f(*edge_color)
+        glLineWidth(line_width)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo_pos)
+        glVertexPointer(3, GL_FLOAT, 0, None)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo_lines)
+        glDrawElements(GL_LINES, self.n_lines, GL_UNSIGNED_INT, None)
+
+        # relleno
+        if self.n_fill:
+            glEnable(GL_POLYGON_OFFSET_FILL)
+            glPolygonOffset(factor, units)
+
+            glBindBuffer(GL_ARRAY_BUFFER, self.vbo_fill)
+            glVertexPointer(3, GL_FLOAT, 0, None)
+
+            if lighting and self.vbo_norm is not None:
+                glEnable(GL_LIGHTING)
+                glEnable(GL_LIGHT0)
+                glColor3f(1.0, 1.0, 1.0)
+                glEnableClientState(GL_NORMAL_ARRAY)
+                glBindBuffer(GL_ARRAY_BUFFER, self.vbo_norm)
+                glNormalPointer(GL_FLOAT, 0, None)
+            else:
+                glColor3f(0.0, 0.5, 0.0)
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo_fill)
+            glDrawElements(GL_TRIANGLES, self.n_fill, GL_UNSIGNED_INT, None)
+
+            glDisableClientState(GL_NORMAL_ARRAY)
+            glDisable(GL_LIGHTING)
+            glDisable(GL_LIGHT0)
+            glDisable(GL_POLYGON_OFFSET_FILL)
+
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+    def delete(self):
+        for b in self.buffers:
+            glDeleteBuffers(1, [b])
+        self.buffers = []
+
+
+def create_window(display, samples):
+    """Crea la ventana con antialiasing; si el driver no lo soporta, reintenta sin él."""
+    try:
+        if samples > 0:
+            pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
+            pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, samples)
+        pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
+        return samples > 0
+    except pygame.error:
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 0)
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 0)
+        pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
+        return False
+
+
+# ----------------------------------------------------------------------------
+# Ventana principal
+# ----------------------------------------------------------------------------
 def window(args):
-    # Cargar el modelo OBJ
     try:
         path = args.load_object
         model_name = os.path.basename(path)
-        (vertices, edges, num_verts, num_triangles, num_edges, faces,
-         polygon_verts, load_error, tex_coords, normals,
-         num_vt, num_vn) = load_obj(path, args)
 
-        if not load_error:
+        t0 = time.perf_counter()
+        mesh = load_obj(path, args)
+
+        if mesh is not None:
+            print(f"Model loaded in {time.perf_counter() - t0:.2f}s")
             show_controls()
             pygame.init()
 
-            text_bgR = rgb_t[args.bg_color][0]
-            text_bgG = rgb_t[args.bg_color][1]
-            text_bgB = rgb_t[args.bg_color][2]
+            text_bg = tuple(rgb_t[args.bg_color])
 
-            text_pos1 = text_pos(args.window_height,570)
-            text_pos2 = text_pos(args.window_height,550)
-            text_pos3 = text_pos(args.window_height,530)
-            text_pos4 = text_pos(args.window_height,510)
-            text_pos5 = text_pos(args.window_height,490)
-            text_pos6 = text_pos(args.window_height,470)
-            text_pos7 = text_pos(args.window_height,450)
-            text_pos8 = text_pos(args.window_height,430)
-            text_pos9 = text_pos(args.window_height,410)
+            text_pos1 = text_pos(args.window_height, 570)
+            text_pos2 = text_pos(args.window_height, 550)
+            text_pos3 = text_pos(args.window_height, 530)
+            text_pos4 = text_pos(args.window_height, 510)
+            text_pos5 = text_pos(args.window_height, 490)
+            text_pos6 = text_pos(args.window_height, 470)
+            text_pos7 = text_pos(args.window_height, 450)
+            text_pos8 = text_pos(args.window_height, 430)
+            text_pos9 = text_pos(args.window_height, 410)
             vnvt = [text_pos7, text_pos8, text_pos9]
-            index = 0
 
             display = (args.window_width, args.window_height)
 
-            pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
-            pygame.display.gl_set_attribute(GL_MULTISAMPLESAMPLES, 6)
+            multisampled = create_window(display, args.antialiasing)
 
-            pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
-
-            glEnable(GL_MULTISAMPLE)
+            if multisampled:
+                glEnable(GL_MULTISAMPLE)
             glEnable(GL_LINE_SMOOTH)
             glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
 
@@ -398,60 +605,34 @@ def window(args):
                          rgb_colors[args.bg_color][1],
                          rgb_colors[args.bg_color][2],
                          rgb_colors[args.bg_color][3])
-            
-            if num_vn > 0 and args.fill_object:
+
+            if mesh.num_vn > 0 and args.fill_object:
                 # Preparar iluminación básica (se activa/desactiva con 'U')
                 glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 0.0, 1.0, 0.0))
                 glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.6, 0.85, 0.6, 1.0))
                 glLightfv(GL_LIGHT0, GL_AMBIENT, (0.15, 0.15, 0.15, 1.0))
                 glEnable(GL_COLOR_MATERIAL)
                 glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-                glColor3f(0.0, 0.5, 0.0)
+                glEnable(GL_NORMALIZE)      # el glScalef (p. ej. -scl 0.001) encoge las normales
 
-            has_normals = num_vn > 0
+            has_normals = mesh.num_vn > 0
             use_normals = False  # se activa con la tecla 'U'
             factor = args.factor
             units = args.units
 
-            ##
             scale = args.scale
             hide_data = False
-            green_val = 255
             rotating = False
 
-            def build_model_list(use_normals_flag):
-                #glEnable(GL_POLYGON_OFFSET_FILL)#--------------------->
-                #glPolygonOffset(0.0, 0.0)#       --------------------->
-                lst = glGenLists(1)
-                glNewList(lst, GL_COMPILE)
+            if args.bg_color == 'white':
+                edge_color = (0.0, 0.0, 0.0)
+                green_val = 100
+            else:
+                edge_color = (1.0, 1.0, 1.0)
+                green_val = 255
 
-                glLineWidth(args.line_width)
-                glBegin(GL_LINES)
-            
-                for edge in edges:
-
-                    '''if edge == ordered_edges[18000]:
-                        glColor(1.0,0.0,0.0)'''
-
-                    for vertex in edge:
-                        glVertex3fv(vertices[vertex])
-                glEnd()
-
-                if args.fill_object:
-                    fill_object(faces, vertices, normals, use_normals_flag, factor, units)
-
-                if args.bg_color == 'white':
-                    glColor3f(0.0, 0.0, 0.0)
-                    edge_green = 100
-                else:
-                    glColor3f(1.0, 1.0, 1.0)
-                    edge_green = 255
-
-                glEndList()
-                return lst, edge_green
-
-            # CONSTRUCCIÓN DE LISTA DEL MODELO
-            model_list, green_val = build_model_list(use_normals)
+            # CONSTRUCCIÓN DEL MODELO EN GPU
+            model = GLModel(mesh, args.fill_object)
 
             is_ortho = False
             setup_view_perspective(display)
@@ -483,16 +664,8 @@ def window(args):
                         elif event.key == pygame.K_u:
                             if has_normals and args.fill_object:
                                 use_normals = not use_normals
-                                if use_normals:
-                                    glEnable(GL_LIGHTING)
-                                    glEnable(GL_LIGHT0)
-                                else:
-                                    glDisable(GL_LIGHTING)
-                                    glDisable(GL_LIGHT0)
-                                glDeleteLists(model_list, 1)
-                                model_list, green_val = build_model_list(use_normals)
                             else:
-                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' or option '-fill/--fill_object' not activated." + Fore.RESET)
+                                print(Fore.YELLOW + f"No 'vn' data on file '{model_name}' (or -fill not enabled)." + Style.RESET_ALL)
 
                         elif event.key == pygame.K_r:
                             quaternion = Quaternion(1, 0, 0, 0)
@@ -536,7 +709,7 @@ def window(args):
                             quaternion = quaternion * rotation
 
                     elif event.type == pygame.MOUSEWHEEL:
-                        zoom_factor = 1.08 if event.y > 0 else (1/1.08 if event.y < 0 else 1.0)
+                        zoom_factor = 1.08 if event.y > 0 else (1 / 1.08 if event.y < 0 else 1.0)
                         scale *= zoom_factor
                     elif event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:
@@ -588,9 +761,9 @@ def window(args):
                     rotation = create_rotation_quaternion(-rot_speed, 0, 0, 1)
                     quaternion = quaternion * rotation
                 if key[pygame.K_z]:
-                    scale -= args.zoom_rate * (dt / (1/60))
+                    scale -= args.zoom_rate * (dt / (1 / 60))
                 if key[pygame.K_x]:
-                    scale += args.zoom_rate * (dt / (1/60))
+                    scale += args.zoom_rate * (dt / (1 / 60))
                 if key[pygame.K_a]:
                     translation[0] -= trans_speed
                 if key[pygame.K_s]:
@@ -609,63 +782,73 @@ def window(args):
                 glMultMatrixf(rotation_matrix)
 
                 glScalef(scale, scale, scale)
-                glCallList(model_list)
+                model.draw(edge_color, args.line_width, use_normals, factor, units)
 
                 glPopMatrix()
 
                 if not hide_data:
-                    drawText(font, 20, text_pos1, f'Model: {model_name}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', (0, green_val, 0, 255), (text_bgR, text_bgG, text_bgB))
+                    fg = (0, green_val, 0)
+                    drawText(font, 20, text_pos1, f'Model: {model_name}', fg, text_bg)
+                    drawText(font, 20, text_pos2, f'Scale: {round(scale, 6)}', fg, text_bg)
                     view_mode = "Orthographic" if is_ortho else "Perspective"
-                    drawText(font, 20, text_pos3, f'View: {view_mode}', (0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos4, f'Num Verts: {num_verts}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos5, f'Num Faces: {num_triangles}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    drawText(font, 20, text_pos6, f'Num Edges: {num_edges}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    if num_vt > 0:
-                        drawText(font, 20, vnvt[index], f'Num VT (tex coords): {num_vt}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                        index += 1
-                    if num_vn > 0:
-                        drawText(font, 20, vnvt[index], f'Num VN (normals): {num_vn}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                        index+=1
-                        drawText(font, 20, vnvt[index], f'Lighting: {"ON" if use_normals else "OFF"}',(0, green_val, 0, 255),(text_bgR, text_bgG, text_bgB))
-                    index = 0
+                    drawText(font, 20, text_pos3, f'View: {view_mode}', fg, text_bg)
+                    drawText(font, 20, text_pos4, f'Num Verts: {mesh.num_verts}', fg, text_bg)
+                    drawText(font, 20, text_pos5, f'Num Faces: {mesh.num_faces}', fg, text_bg)
+                    drawText(font, 20, text_pos6, f'Num Edges: {mesh.num_edges}', fg, text_bg)
+                    slot = 0
+                    if mesh.num_vt > 0:
+                        drawText(font, 20, vnvt[slot], f'Num VT (tex coords): {mesh.num_vt}', fg, text_bg)
+                        slot += 1
+                    if mesh.num_vn > 0:
+                        drawText(font, 20, vnvt[slot], f'Num VN (normals): {mesh.num_vn}', fg, text_bg)
+                        slot += 1
+                        drawText(font, 20, vnvt[slot], f'Lighting: {"ON" if use_normals else "OFF"}', fg, text_bg)
 
                 pygame.display.flip()
-                clock.tick(120)
+                clock.tick(args.max_fps)
 
-            glDeleteLists(model_list, 1)
+            model.delete()
             pygame.quit()
         else:
-            print(Fore.RED+Style.BRIGHT + "FILE ERROR" + Fore.RESET+Style.RESET_ALL)
+            print(Fore.RED + Style.BRIGHT + "FILE ERROR" + Fore.RESET + Style.RESET_ALL)
             print("terminated")
 
     except Exception as e:
-        print(Fore.RED+Style.BRIGHT + "UNEXPECTED ERROR: " + e.__str__() + Fore.RESET+Style.RESET_ALL)
+        print(Fore.RED + Style.BRIGHT + "UNEXPECTED ERROR: " + e.__str__() + Fore.RESET + Style.RESET_ALL)
+
 
 def main():
+    # Los valores por defecto de width/height/rspd/tspd y los textos de ayuda están
+    # reconstruidos (el pegado original llegaba cortado): pon aquí los tuyos.
     parser = argparse.ArgumentParser(prog="pymeshgl", conflict_handler='resolve',
                                      description="Show obj models",
-                                     epilog="REPO: https://github.com/antonioam82/PyMeshGL.git",
+                                     epilog="REPO: https://github.com/antonioam8",
                                      allow_abbrev=False)
-    parser.add_argument('-load','--load_object',required=True,type=check_source_ext,help="Obj model to load")
-    parser.add_argument('-width','--window_width',type=check_width_value,default=800,help="Window width (default is 800)")
-    parser.add_argument('-height','--window_height',type=check_height_value,default=600,help="Window height (default is 600)")
-    parser.add_argument('-bg','--bg_color',type=check_color,default='black',help="Background color (default is 'black')")
-    parser.add_argument('-lw','--line_width',type=check_lw,default=1.0,help="Line width (default is 1.0)")
-    parser.add_argument('-fill','--fill_object',action='store_true',help="Add solid color to model")
-    parser.add_argument('-scl','--scale',type=check_positive,default=1.0,help="Object scale (default is 1.0)")
-    parser.add_argument('-zr','--zoom_rate',type=check_positive,default=0.05,help="Zoom Rate (default is 0.05)")
-    parser.add_argument('-ec','--enable_centering',action='store_true',help="Enable automatic centering")
-    parser.add_argument('-rspd','--rotation_speed',type=check_positive,default=90.0,help="Rotation speed (default is 90.0)")
-    parser.add_argument('-tspd','--translation_speed',type=check_positive,default=2.0,help="Translation speed (default is 2.0)")
-    parser.add_argument('-f','--factor',type=float,default=0.0,help="Slope Scaling (Slope-Factor). Needs '-fill/--fill_object' stored True")
-    parser.add_argument('-u','--units',type=float,default=0.0,help="Minimum Phase Shift Units (Constant-Units). Needs '-fill/--fill_object' stored True")
- 
+    parser.add_argument('-load', '--load_object', required=True, type=check_source_ext, help="Path to the .obj model")
+    parser.add_argument('-width', '--window_width', type=check_width_value, default=800, help="Window width (800-1600)")
+    parser.add_argument('-height', '--window_height', type=check_height_value, default=600, help="Window height (600-900)")
+    parser.add_argument('-bg', '--bg_color', type=check_color, default='black', help="Background color: blue, gray, black, white")
+    parser.add_argument('-lw', '--line_width', type=check_lw, default=1.0, help="Line width (0.1-10.0)")
+    parser.add_argument('-fill', '--fill_object', action='store_true', help="Add solid faces to the model")
+    parser.add_argument('-scl', '--scale', type=check_positive, default=1.0, help="Initial scale")
+    parser.add_argument('-zr', '--zoom_rate', type=check_positive, default=0.05, help="Zoom rate for the Z/X keys")
+    parser.add_argument('-ec', '--enable_centering', action='store_true', help="Enable model centering")
+    parser.add_argument('-rspd', '--rotation_speed', type=check_positive, default=90.0, help="Rotation speed (degrees per second)")
+    parser.add_argument('-tspd', '--translation_speed', type=check_positive, default=5.0, help="Translation speed (units per second)")
+    parser.add_argument('-f', '--factor', type=float, default=0.0, help="Slope Scale Factor for glPolygonOffset (needs -fill)")
+    parser.add_argument('-u', '--units', type=float, default=0.0, help="Minimum Resolvable Depth Units for glPolygonOffset (needs -fill)")
+    # nuevos
+    parser.add_argument('-cache', '--use_cache', action='store_true',
+                        help="Save/load the parsed model in a .pymeshgl.npz file next to the .obj")
+    parser.add_argument('-aa', '--antialiasing', type=int, choices=[0, 2, 4, 6, 8], default=6,
+                        help="MSAA samples (0 = off). Lower it for very dense models")
+    parser.add_argument('-fps', '--max_fps', type=int, default=120, help="Frame rate cap")
+
     args = parser.parse_args()
     if (args.factor != 0.0 or args.units != 0.0) and not args.fill_object:
-        parser.error("Arguments '-f/--factor' and '-u/--units' only can be used with '-fill/--fill_object' argument stored True")
- 
+        parser.error("Arguments '-f/--factor' and '-u/--units' only can be used with '-fill'")
+
     window(args)
 
-if __name__ =="__main__":
+if __name__ == "__main__":
     main()
