@@ -102,11 +102,29 @@ class Mesh:
     last_poly_verts: int = 0                 # nº de vértices de la última cara leída
 
 
-def _flush(flat, chunks):
-    """Convierte los strings acumulados a un bloque float32 (N,3)."""
+class ObjParseError(ValueError):
+    """Error de lectura que ya incluye el número de línea exacto."""
+
+
+def _flush(flat, chunks, lines):
+    """Convierte los strings acumulados a un bloque float32 (N,3).
+
+    `lines` guarda el nº de línea del archivo de cada vértice pendiente; solo se usa
+    para señalar la línea exacta si algún valor no es un número válido.
+    """
     if flat:
-        chunks.append(np.array(flat, dtype=np.float32).reshape(-1, 3))
+        try:
+            chunks.append(np.array(flat, dtype=np.float32).reshape(-1, 3))
+        except ValueError as e:
+            for i, tok in enumerate(flat):
+                try:
+                    float(tok)
+                except ValueError:
+                    raise ObjParseError(
+                        f"LINE {lines[i // 3]}: could not convert string to float: {tok!r}") from e
+            raise
         flat.clear()
+        del lines[:]
 
 
 def parse_obj(filename, need_faces, keep_raw=False):
@@ -117,6 +135,7 @@ def parse_obj(filename, need_faces, keep_raw=False):
     """
     v_flat, n_flat = [], []
     v_chunks, n_chunks = [], []
+    v_lines, n_lines = array('i'), array('i')   # nº de línea de cada v / vn pendiente de convertir
     face_v = array('i')      # índices de posición de todas las caras, aplanados
     face_vn = array('i')     # índices de normal (solo si need_faces o keep_raw)
     face_vt = array('i')     # índices de textura (solo si keep_raw)
@@ -139,9 +158,10 @@ def parse_obj(filename, need_faces, keep_raw=False):
                     if len(parts) < 4:
                         continue
                     v_flat.extend(parts[1:4])
+                    v_lines.append(line_counter)
                     nv += 1
                     if len(v_flat) >= FLUSH_EVERY:
-                        _flush(v_flat, v_chunks)
+                        _flush(v_flat, v_chunks, v_lines)
 
                 elif tag == 'f':
                     fv, fn, ft = [], [], []
@@ -182,9 +202,10 @@ def parse_obj(filename, need_faces, keep_raw=False):
                     if len(parts) < 4:
                         continue
                     n_flat.extend(parts[1:4])
+                    n_lines.append(line_counter)
                     nvn += 1
                     if len(n_flat) >= FLUSH_EVERY:
-                        _flush(n_flat, n_chunks)
+                        _flush(n_flat, n_chunks, n_lines)
 
                 elif tag == 'vt':
                     if len(parts) >= 3:
@@ -193,8 +214,10 @@ def parse_obj(filename, need_faces, keep_raw=False):
                             tex_list.append([float(parts[1]), float(parts[2]),
                                              float(parts[3]) if len(parts) > 3 else 0.0])
 
-        _flush(v_flat, v_chunks)
-        _flush(n_flat, n_chunks)
+        _flush(v_flat, v_chunks, v_lines)
+        _flush(n_flat, n_chunks, n_lines)
+    except ObjParseError:
+        raise                       # ya trae la línea exacta
     except Exception as e:
         raise ValueError(f"LINE {line_counter}: {e}") from e
 
