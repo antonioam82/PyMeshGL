@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="pymeshgl",
-    version="1.0.0",
+    version="2.0.0",
     description="Visor 3D interactivo de modelos OBJ con OpenGL y rotacion por cuaterniones",
     py_modules=["PyMeshGL", "test_script"],
     install_requires=[
