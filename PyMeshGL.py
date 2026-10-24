@@ -10,6 +10,7 @@ import argparse
 from array import array
 from dataclasses import dataclass
 from typing import Optional
+
 import numpy as np
 from colorama import init, Fore, Style
 
@@ -31,6 +32,11 @@ CACHE_SUFFIX = ".pymeshgl.npz"
 CACHE_VERSION = 1
 FLUSH_EVERY = 900_000          # nº de strings numéricos acumulados antes de convertir a NumPy
 
+
+# ----------------------------------------------------------------------------
+# Validadores de argumentos
+# (los textos de error están reconstruidos: sustitúyelos por los tuyos si quieres)
+# ----------------------------------------------------------------------------
 def check_width_value(width):
     val = int(width)
     if val < 800 or val > 1600:
@@ -87,6 +93,13 @@ class Mesh:
     num_edges: int
     num_vt: int
     num_vn: int
+    # Solo se rellenan con keep_raw=True (herramientas de diagnóstico, ver load_obj_legacy)
+    poly_v: Optional[np.ndarray] = None      # índices de posición por cara, aplanados
+    poly_vt: Optional[np.ndarray] = None     # índices de textura (-1 = sin vt)
+    poly_vn: Optional[np.ndarray] = None     # índices de normal (-1 = sin vn)
+    poly_len: Optional[np.ndarray] = None    # nº de vértices de cada cara
+    tex_coords: Optional[list] = None        # [[u, v, w], ...]
+    last_poly_verts: int = 0                 # nº de vértices de la última cara leída
 
 
 def _flush(flat, chunks):
@@ -96,13 +109,20 @@ def _flush(flat, chunks):
         flat.clear()
 
 
-def parse_obj(filename, need_faces):
-    """Parsea el OBJ sin diccionarios por vértice y construye aristas/triángulos con NumPy."""
+def parse_obj(filename, need_faces, keep_raw=False):
+    """Parsea el OBJ sin diccionarios por vértice y construye aristas/triángulos con NumPy.
+
+    keep_raw=True conserva además la estructura original de polígonos y las coords de
+    textura (más memoria): solo para diagnóstico, no lo uses en el visor.
+    """
     v_flat, n_flat = [], []
     v_chunks, n_chunks = [], []
     face_v = array('i')      # índices de posición de todas las caras, aplanados
-    face_vn = array('i')     # índices de normal (solo si need_faces)
+    face_vn = array('i')     # índices de normal (solo si need_faces o keep_raw)
+    face_vt = array('i')     # índices de textura (solo si keep_raw)
     face_len = array('i')    # nº de vértices de cada cara
+    tex_list = []            # coords de textura (solo si keep_raw)
+    want_vn = need_faces or keep_raw
     nv = nvt = nvn = nf = 0
     line_counter = 0
 
@@ -124,7 +144,7 @@ def parse_obj(filename, need_faces):
                         _flush(v_flat, v_chunks)
 
                 elif tag == 'f':
-                    fv, fn = [], []
+                    fv, fn, ft = [], [], []
                     for tok in parts[1:]:
                         # soporta v, v/vt, v//vn, v/vt/vn y índices negativos
                         if '/' in tok:
@@ -133,21 +153,29 @@ def parse_obj(filename, need_faces):
                                 continue
                             vi = int(vals[0])
                             ni = -1
-                            if need_faces and len(vals) >= 3 and vals[2]:
+                            ti = -1
+                            if want_vn and len(vals) >= 3 and vals[2]:
                                 k = int(vals[2])
                                 ni = nvn + k if k < 0 else k - 1
+                            if keep_raw and len(vals) >= 2 and vals[1]:
+                                k = int(vals[1])
+                                ti = nvt + k if k < 0 else k - 1
                         else:
                             vi = int(tok)
                             ni = -1
+                            ti = -1
                         fv.append(nv + vi if vi < 0 else vi - 1)
                         fn.append(ni)
+                        ft.append(ti)
 
                     if len(fv) < 3:
                         continue
                     face_v.extend(fv)
                     face_len.append(len(fv))
-                    if need_faces:
+                    if want_vn:
                         face_vn.extend(fn)
+                    if keep_raw:
+                        face_vt.extend(ft)
                     nf += 1
 
                 elif tag == 'vn':
@@ -161,6 +189,9 @@ def parse_obj(filename, need_faces):
                 elif tag == 'vt':
                     if len(parts) >= 3:
                         nvt += 1        # las coords de textura no se dibujan: solo se cuentan
+                        if keep_raw:
+                            tex_list.append([float(parts[1]), float(parts[2]),
+                                             float(parts[3]) if len(parts) > 3 else 0.0])
 
         _flush(v_flat, v_chunks)
         _flush(n_flat, n_chunks)
@@ -177,7 +208,14 @@ def parse_obj(filename, need_faces):
         edges = np.zeros((0, 2), dtype=np.uint32)
         tri_v = np.zeros(0, dtype=np.uint32) if need_faces else None
         tri_vn = np.zeros(0, dtype=np.int32) if need_faces else None
-        return Mesh(vertices, edges, normals, tri_v, tri_vn, nv, 0, 0, nvt, nvn)
+        mesh = Mesh(vertices, edges, normals, tri_v, tri_vn, nv, 0, 0, nvt, nvn)
+        if keep_raw:
+            mesh.poly_v = np.zeros(0, dtype=np.int64)
+            mesh.poly_vt = np.zeros(0, dtype=np.int64)
+            mesh.poly_vn = np.zeros(0, dtype=np.int64)
+            mesh.poly_len = np.zeros(0, dtype=np.int64)
+            mesh.tex_coords = tex_list
+        return mesh
 
     V = np.frombuffer(face_v, dtype=np.intc).astype(np.int64)
     flen = np.frombuffer(face_len, dtype=np.intc).astype(np.int64)
@@ -217,7 +255,17 @@ def parse_obj(filename, need_faces):
         VN[(VN < 0) | (VN >= nvn)] = -1
         tri_vn = VN[sel]
 
-    return Mesh(vertices, edges, normals, tri_v, tri_vn, nv, nf, edges.shape[0], nvt, nvn)
+    mesh = Mesh(vertices, edges, normals, tri_v, tri_vn, nv, nf, edges.shape[0], nvt, nvn)
+    mesh.last_poly_verts = int(flen[-1])
+    if keep_raw:
+        mesh.poly_v = V
+        mesh.poly_len = flen
+        mesh.poly_vn = np.frombuffer(face_vn, dtype=np.intc).astype(np.int64)
+        mesh.poly_vn[(mesh.poly_vn < 0) | (mesh.poly_vn >= nvn)] = -1
+        mesh.poly_vt = np.frombuffer(face_vt, dtype=np.intc).astype(np.int64)
+        mesh.poly_vt[(mesh.poly_vt < 0) | (mesh.poly_vt >= nvt)] = -1
+        mesh.tex_coords = tex_list
+    return mesh
 
 
 def read_cache(filename, need_faces):
@@ -260,17 +308,23 @@ def write_cache(filename, mesh):
 
 def load_obj(filename, args):
     """Devuelve un Mesh, o None si hubo error de lectura."""
+    # getattr: así también funciona con scripts externos cuyo parser no define estas opciones
+    use_cache = getattr(args, 'use_cache', False)
+    keep_raw = getattr(args, 'keep_raw', False)
+    if keep_raw:
+        use_cache = False       # la caché no guarda la estructura original de polígonos
+
     try:
         mesh = None
-        if args.use_cache:
+        if use_cache:
             mesh = read_cache(filename, args.fill_object)
             if mesh is not None:
                 print("Loaded from cache")
 
         if mesh is None:
             # con caché se parsean también las caras, para que el .npz sirva con y sin -fill
-            mesh = parse_obj(filename, args.fill_object or args.use_cache)
-            if args.use_cache:
+            mesh = parse_obj(filename, args.fill_object or use_cache, keep_raw)
+            if use_cache:
                 write_cache(filename, mesh)
 
         # CENTERING (se aplica después de la caché, que guarda los datos originales)
@@ -288,6 +342,39 @@ def load_obj(filename, args):
     except Exception as e:
         print(f"FILE ERROR {str(e)}")
         return None
+
+
+def load_obj_legacy(filename, args):
+    """Compatibilidad con la API antigua de load_obj (herramientas como test_script.py).
+
+    Devuelve la misma tupla de 12 elementos que antes:
+    (vertices, edges, num_verts, num_triangles, num_edges, faces,
+     polygon_verts, load_error, tex_coords, normals, num_vt, num_vn)
+    No usar en el visor: construye listas de Python y es lento con modelos grandes.
+    """
+    legacy_args = argparse.Namespace(**{**vars(args), 'keep_raw': True, 'use_cache': False})
+    mesh = load_obj(filename, legacy_args)
+    if mesh is None:
+        return [], None, 0, 0, 0, [], 0, True, [], [], 0, 0
+
+    vertices = mesh.vertices.tolist()
+    edges = [tuple(e) for e in mesh.edges.tolist()]
+    normals = mesh.normals.tolist()
+
+    faces = []
+    if args.fill_object and mesh.poly_len is not None:
+        pv, pvt, pvn = mesh.poly_v.tolist(), mesh.poly_vt.tolist(), mesh.poly_vn.tolist()
+        pos = 0
+        for n in mesh.poly_len.tolist():
+            faces.append([{'v': pv[i],
+                           'vt': pvt[i] if pvt[i] >= 0 else None,
+                           'vn': pvn[i] if pvn[i] >= 0 else None}
+                          for i in range(pos, pos + n)])
+            pos += n
+
+    return (vertices, edges, mesh.num_verts, mesh.num_faces, mesh.num_edges, faces,
+            mesh.last_poly_verts, False, mesh.tex_coords or [], normals,
+            mesh.num_vt, mesh.num_vn)
 
 
 # ----------------------------------------------------------------------------
