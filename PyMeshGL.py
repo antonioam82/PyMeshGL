@@ -32,11 +32,6 @@ CACHE_SUFFIX = ".pymeshgl.npz"
 CACHE_VERSION = 1
 FLUSH_EVERY = 900_000          # nº de strings numéricos acumulados antes de convertir a NumPy
 
-
-# ----------------------------------------------------------------------------
-# Validadores de argumentos
-# (los textos de error están reconstruidos: sustitúyelos por los tuyos si quieres)
-# ----------------------------------------------------------------------------
 def check_width_value(width):
     val = int(width)
     if val < 800 or val > 1600:
@@ -58,12 +53,6 @@ def check_source_ext(file):
     else:
         raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"FILE NOT FOUND: {file}" + Style.RESET_ALL)
     return file
-
-def check_color(color):
-    colors = ['blue', 'gray', 'black', 'white']
-    if color not in colors:
-        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"Background color must be one of: {', '.join(colors)}" + Style.RESET_ALL)
-    return color
 
 def check_lw(w):
     width = float(w)
@@ -937,7 +926,7 @@ def main():
     parser.add_argument('-load', '--load_object', required=True, type=check_source_ext, help="Path to the .obj model")
     parser.add_argument('-width', '--window_width', type=check_width_value, default=800, help="Window width (800-1600)")
     parser.add_argument('-height', '--window_height', type=check_height_value, default=600, help="Window height (600-900)")
-    parser.add_argument('-bg', '--bg_color', type=check_color, default='black', help="Background color: blue, gray, black, white")
+    parser.add_argument('-bg', '--bg_color', type=str, choices=['black','white','blue','gray'],default='black', help="Background color: blue, gray, black, white")
     parser.add_argument('-lw', '--line_width', type=check_lw, default=1.0, help="Line width (0.1-10.0)")
     parser.add_argument('-fill', '--fill_object', action='store_true', help="Add solid faces to the model")
     parser.add_argument('-scl', '--scale', type=check_positive, default=1.0, help="Initial scale")
