@@ -51,7 +51,7 @@ def check_source_ext(file):
         if not ex in supported_formats:
             raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"Source file format not supported: {ex} (use {', '.join(supported_formats)})" + Style.RESET_ALL)
     else:
-        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"FILE NOT FOUND: {file}" + Style.RESET_ALL)
+        raise argparse.ArgumentTypeError(Fore.RED + Style.BRIGHT + f"ERROR: FILE '{file}' NOT FOUND" + Style.RESET_ALL)
     return file
 
 def check_lw(w):
