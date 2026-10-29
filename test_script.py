@@ -25,6 +25,12 @@ def check_item(item):
         raise argparse.ArgumentTypeError("Item must be 'faces', 'edges', 'vertices', 'tex_coords', 'normals' or 'none'")
     return item
 
+class UniqueStore(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if getattr(namespace, self.dest, None) is not None:
+            parser.error(f"argument '{option_string}' cannot be repeated")
+        setattr(namespace, self.dest, values)
+
 def main():
     parser = argparse.ArgumentParser(prog="test_script", conflict_handler='resolve',
                                      description='''PyMeshGL diagnostic tool: loads an OBJ model
@@ -32,7 +38,7 @@ def main():
                                      optionally, its vertices, edges, faces, texture coordinates (vt) and
                                      normals (vn).
                                      Handy for quickly checking that a model is loaded correctly.''')
-    parser.add_argument('-load','--load_object',required=True,type=check_source_ext,help='Path to the .obj model')
+    parser.add_argument('-load','--load_object',required=True, action=UniqueStore,type=check_source_ext,help='Path to the .obj model')
     parser.add_argument('-item','--show_item',required=True,type=check_item,help="Item to print: 'faces', 'edges', 'vertices', 'tex_coords', 'normals' or 'none'")
     parser.add_argument('-fill','--fill_object',action='store_true',help='Use color/fill mode when loading (keeps the faces in memory)')
     parser.add_argument('-ec','--enable_centering',action='store_true', help='Center the model before printing it')
