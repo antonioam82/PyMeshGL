@@ -924,11 +924,9 @@ class UniqueStore(argparse.Action):
 
 
 def main():
-    # Los valores por defecto de width/height/rspd/tspd y los textos de ayuda están
-    # reconstruidos (el pegado original llegaba cortado): pon aquí los tuyos.
     parser = argparse.ArgumentParser(prog="pymeshgl", conflict_handler='resolve',
                                      description="Show obj models",
-                                     epilog="REPO: https://github.com/antonioam8",
+                                     epilog="REPO: https://github.com/antonioam82/PyMeshGL.git",
                                      allow_abbrev=False)
     parser.add_argument('-load', '--load_object', required=True, action=UniqueStore, type=check_source_ext, help="Path to the .obj model")
     parser.add_argument('-width', '--window_width', type=check_width_value, default=800, help="Window width (800-1600)")
