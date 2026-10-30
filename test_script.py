@@ -37,7 +37,10 @@ def main():
                                      (the same parser used by PyMeshGL.py) and prints its counters and,
                                      optionally, its vertices, edges, faces, texture coordinates (vt) and
                                      normals (vn).
-                                     Handy for quickly checking that a model is loaded correctly.''')
+                                     Handy for quickly checking that a model is loaded correctly.''',
+                                     epilog="REPO: https://github.com/antonioam82/PyMeshGL.git",
+                                     allow_abbrev=False)
+
     parser.add_argument('-load','--load_object',required=True, action=UniqueStore,type=check_source_ext,help='Path to the .obj model')
     parser.add_argument('-item','--show_item',required=True,type=check_item,help="Item to print: 'faces', 'edges', 'vertices', 'tex_coords', 'normals' or 'none'")
     parser.add_argument('-fill','--fill_object',action='store_true',help='Use color/fill mode when loading (keeps the faces in memory)')
